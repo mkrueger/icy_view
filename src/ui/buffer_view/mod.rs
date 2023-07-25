@@ -15,7 +15,6 @@ pub use selection::*;
 
 // use super::main_window::{Options, PostProcessing, Scaling};
 
-
 pub struct Blink {
     is_on: bool,
     last_blink: u128,

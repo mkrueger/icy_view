@@ -70,6 +70,7 @@ void main (void) {
     vec4 fg = get_palette_color(ch.y);
     vec4 bg = get_palette_color(ch.z);
 
+/*
     if (u_selection_attr >= 0.0) {
         float x = floor(fb_pos.x);
         float y = floor(fb_pos.y);
@@ -78,7 +79,7 @@ void main (void) {
             bg = fg;
             fg = tmp;
         }
-    }
+    }*/
 
     if (char_data.x > 0.5 && (ch_attr[3] == 0.0 || u_blink > 0)) {
         fragColor = fg;
@@ -106,7 +107,7 @@ void main (void) {
             fragColor = fg;
         }
     }
-
+/*
     if (u_selection_attr < 0.0 && u_caret_position.z > 0 && floor(fb_pos) == u_caret_position.xy) {
         if (u_caret_position.w == 0.0) { // underscore
             if (fract_fb_pos.y >= 13.0 / 16.0 && fract_fb_pos.y <= 15.0 / 16.0) {
@@ -117,5 +118,5 @@ void main (void) {
                 fragColor = get_palette_color(ch.y);
             }
         }
-    }
+    }*/
 }
