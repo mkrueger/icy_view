@@ -27,13 +27,16 @@ impl BufferView {
         use glow::HasContext as _;
 
         let clip_rect = draw_rect;
+        let bottom_space = 9.;
         let clip_rect_in_pixels = ViewportInPixels {
             left_px: clip_rect.min.x * info.pixels_per_point,
             top_px: clip_rect.min.y * info.pixels_per_point,
-            from_bottom_px: info.screen_size_px[1] as f32 - clip_rect.max.y * info.pixels_per_point,
+            from_bottom_px: info.screen_size_px[1] as f32 - (clip_rect.max.y + bottom_space) * info.pixels_per_point,
             width_px: clip_rect.width() * info.pixels_per_point,
-            height_px: clip_rect.height() * info.pixels_per_point,
+            height_px: (clip_rect.height() + bottom_space) * info.pixels_per_point,
         };
+
+        // println!("{} x {}", clip_rect_in_pixels.width_px / info.pixels_per_point, clip_rect_in_pixels.height_px / info.pixels_per_point);
 
         unsafe {
             let fb = gl.create_framebuffer().unwrap();
