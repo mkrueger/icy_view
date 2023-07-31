@@ -1,10 +1,10 @@
 use eframe::{
-    egui::{self, CentralPanel, Context, CursorIcon, PointerButton},
+    egui::{self, CentralPanel, Context, CursorIcon},
     epaint::{Color32, Rect},
     App, Frame,
 };
 
-use egui::{vec2, Align2, Layout, Pos2, ScrollArea, TextEdit, Ui, Vec2};
+use egui::{Layout, ScrollArea, TextEdit, Ui, Vec2};
 use icy_engine::Buffer;
 
 use std::{
@@ -12,7 +12,7 @@ use std::{
     env, fs,
     io::Error,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::Arc, collections::btree_map::Range,
 };
 
 use super::BufferView;
@@ -24,7 +24,7 @@ pub struct MainWindow {
     path: PathBuf,
     /// Selected file path
     selected_file: Option<usize>,
-
+    scroll_pos: Option<f32>,
     /// Files in directory.
     files: Vec<PathBuf>,
 
@@ -59,6 +59,7 @@ impl MainWindow {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
             path,
             selected_file: None,
+            scroll_pos: None,
             files: Vec::new(),
 
             #[cfg(unix)]
@@ -66,9 +67,8 @@ impl MainWindow {
         }
     }
 
-    fn ui_in_window(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn ui_in_window(&mut self, _ctx: &Context, ui: &mut Ui) {
         enum Command {
-            Open(usize),
             OpenSelected,
             Refresh,
             Select(usize),
@@ -91,7 +91,7 @@ impl MainWindow {
                         command = Some(Command::Refresh);
                     }
                     let mut path_edit = self.path.to_str().unwrap().to_string();
-                    let response = ui.add_sized(
+                    let _response = ui.add_sized(
                         ui.available_size(),
                         TextEdit::singleline(&mut path_edit),
                     );
@@ -111,12 +111,22 @@ impl MainWindow {
                 }
             }
 
-            let area = ScrollArea::vertical();
+            let mut area = ScrollArea::vertical();
+            let row_height = ui.text_style_height(&egui::TextStyle::Body);
+
+
+            if let Some(sel) = self.scroll_pos {
+                area = area.vertical_scroll_offset(sel);
+                self.scroll_pos = None;
+            }
+            let mut r = std::ops::Range::<usize> { start:0, end:0 };
+
             let output = area.show_rows(
                 ui,
-                ui.text_style_height(&egui::TextStyle::Body),
+                row_height,
                 self.files.len(),
                 |ui, range| {
+                    r = range.clone();
                     ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
                       let first = range.start;
                       let mut i = 0;
@@ -150,11 +160,22 @@ impl MainWindow {
               if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
                 if s > 0  {
                   command = Some(Command::Select(s - 1));
+                  if r.start > s - 1  {
+                    let spacing = ui.spacing().item_spacing;
+                    let pos = (row_height + spacing.y) * (s - 1) as f32;
+                    self.scroll_pos = Some(pos);
+                  }
                 }
               }
+              
               if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
                 if s + 1 < self.files.len() {
                   command = Some(Command::Select(s + 1));
+                  if r.end - 10 <= s   {
+                    let spacing = ui.spacing().item_spacing;
+                    let pos = (row_height + spacing.y) * (s + 1) as f32;
+                    self.scroll_pos = Some(pos);
+                  }
                 }
               }
             }
@@ -173,10 +194,6 @@ impl MainWindow {
         if let Some(command) = command {
             match command {
                 Command::Select(file) => self.select(Some(file)),
-                Command::Open(idx) => {
-                    self.select(Some(idx));
-                    self.open_selected();
-                }
                 Command::OpenSelected => self.open_selected(),
                 Command::Refresh => self.refresh(),
                 Command::UpDirectory => {
@@ -195,7 +212,7 @@ impl MainWindow {
             .stick_to_bottom(false)
             .drag_to_scroll(true)
             .show_viewport(ui, |ui, viewport| {
-                let (id, rect) = ui.allocate_space(available_rect.size());
+                let (id, _rect) = ui.allocate_space(available_rect.size());
                 let rect = available_rect;
                 let mut response = ui.interact(rect, id, egui::Sense::click());
                 let size = available_rect.size();
@@ -271,7 +288,6 @@ impl MainWindow {
                 response.interact_pointer_pos = None;
                 response
             });
-
         output.inner
     }
 
@@ -289,20 +305,6 @@ impl MainWindow {
         self.refresh();
     }
 
-    fn confirm(&mut self) {}
-
-    fn get_folder(&self) -> &Path {
-        if let Some(idx) = &self.selected_file {
-          let path = &self.files[*idx];
-          if path.is_dir() {
-                return path.as_path();
-            }
-        }
-
-        // No selected file or it's not a folder, so use the current path.
-        &self.path
-    }
-
     pub fn refresh(&mut self) {
         self.files = read_folder(
             &self.path,
@@ -316,7 +318,7 @@ impl MainWindow {
         if let Some(idx) = &file {
             let path = &self.files[*idx];
             if path.is_file() {
-                self.buffer_view.lock().buf = Buffer::load_buffer(path).unwrap()
+                self.buffer_view.lock().buf = Buffer::load_buffer(path, true).unwrap()
             }
         };
 

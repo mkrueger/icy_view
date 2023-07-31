@@ -30,14 +30,4 @@ impl Selection {
             locked: false,
         }
     }
-    pub fn is_empty(&self) -> bool {
-        self.anchor_pos == self.lead_pos
-    }
-}
-
-impl Selection {
-    pub fn set_lead(&mut self, lead: Vec2) {
-        self.lead = lead;
-        self.lead_pos = Position::new(lead.x as i32, lead.y as i32);
-    }
 }

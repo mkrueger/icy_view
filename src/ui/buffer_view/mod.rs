@@ -1,8 +1,6 @@
-use std::cmp::{max, min};
-
 use eframe::epaint::Vec2;
 use glow::NativeTexture;
-use icy_engine::{Buffer, BufferParser, CallbackAction, Caret, EngineResult, Position};
+use icy_engine::{Buffer, Caret};
 
 pub mod render;
 pub use render::*;
@@ -480,89 +478,11 @@ void main() {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.caret.ff(&mut self.buf);
-    }
-
-    pub fn get_copy_text(&mut self, buffer_parser: &Box<dyn BufferParser>) -> Option<String> {
-        let Some(selection) = &self.selection_opt else {
-            return None;
-        };
-
-        let mut res = String::new();
-        if selection.block_selection {
-            let start = Position::new(
-                min(selection.anchor_pos.x, selection.lead_pos.x),
-                min(selection.anchor_pos.y, selection.lead_pos.y),
-            );
-            let end = Position::new(
-                max(selection.anchor_pos.x, selection.lead_pos.x),
-                max(selection.anchor_pos.y, selection.lead_pos.y),
-            );
-            for y in start.y..=end.y {
-                for x in start.x..end.x {
-                    let ch = self.buf.get_char(Position::new(x, y)).unwrap();
-                    res.push(buffer_parser.to_unicode(ch.ch));
-                }
-                res.push('\n');
-            }
-        } else {
-            let (start, end) = if selection.anchor_pos < selection.lead_pos {
-                (selection.anchor_pos, selection.lead_pos)
-            } else {
-                (selection.lead_pos, selection.anchor_pos)
-            };
-            if start.y != end.y {
-                for x in start.x..self.buf.get_line_length(start.y) {
-                    let ch = self.buf.get_char(Position::new(x, start.y)).unwrap();
-                    res.push(buffer_parser.to_unicode(ch.ch));
-                }
-                res.push('\n');
-                for y in start.y + 1..end.y {
-                    for x in 0..self.buf.get_line_length(y) {
-                        let ch = self.buf.get_char(Position::new(x, y)).unwrap();
-                        res.push(buffer_parser.to_unicode(ch.ch));
-                    }
-                    res.push('\n');
-                }
-                for x in 0..=end.x {
-                    let ch = self.buf.get_char(Position::new(x, end.y)).unwrap();
-                    res.push(buffer_parser.to_unicode(ch.ch));
-                }
-            } else {
-                for x in start.x..=end.x {
-                    let ch = self.buf.get_char(Position::new(x, start.y)).unwrap();
-                    res.push(buffer_parser.to_unicode(ch.ch));
-                }
-            }
-        }
-        self.selection_opt = None;
-        Some(res)
-    }
-
     pub fn redraw_view(&mut self) {
         self.redraw_view = true;
     }
 
-    pub fn redraw_palette(&mut self) {
-        self.redraw_palette = true;
-    }
-
-    pub fn redraw_font(&mut self) {
-        self.redraw_font = true;
-    }
-
-    pub fn print_char(
-        &mut self,
-        parser: &mut Box<dyn BufferParser>,
-        c: char,
-    ) -> EngineResult<CallbackAction> {
-        let res = parser.print_char(&mut self.buf, &mut self.caret, c);
-        self.redraw_view();
-        res
-    }
-
-    pub fn destroy(&self, gl: &glow::Context) {
+    pub fn _destroy(&self, gl: &glow::Context) {
         use glow::HasContext as _;
         unsafe {
             gl.delete_program(self.program);
