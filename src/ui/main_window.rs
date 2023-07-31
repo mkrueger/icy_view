@@ -318,7 +318,9 @@ impl MainWindow {
         if let Some(idx) = &file {
             let path = &self.files[*idx];
             if path.is_file() {
-                self.buffer_view.lock().buf = Buffer::load_buffer(path, true).unwrap()
+                if let Ok(buf) =  Buffer::load_buffer(path, true) {
+                    self.buffer_view.lock().load_buffer(buf);
+                }
             }
         };
 

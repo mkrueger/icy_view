@@ -482,6 +482,12 @@ void main() {
         self.redraw_view = true;
     }
 
+    pub fn load_buffer(&mut self, buf: Buffer) {
+        self.buf = buf;
+        self.redraw_font = true;
+        self.redraw_palette = true;
+    }
+ 
     pub fn _destroy(&self, gl: &glow::Context) {
         use glow::HasContext as _;
         unsafe {
