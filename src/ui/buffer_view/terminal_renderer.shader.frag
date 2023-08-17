@@ -6,6 +6,8 @@ uniform sampler2D u_palette;
 uniform sampler2DArray u_buffer;
 
 uniform vec2        u_resolution;
+uniform vec2        u_buffer_texture_resolution;
+
 uniform vec2        u_position;
 uniform vec2        u_terminal_size;
 uniform vec4        u_caret_position;
@@ -47,11 +49,13 @@ void main (void) {
     vec2 view_coord = (gl_FragCoord.xy - u_position) / u_resolution;
     view_coord = vec2(view_coord.s, 1.0 - view_coord.t);
 
-    vec2 sz = u_terminal_size;
-    vec2 fb_pos = (view_coord * sz);
+    vec2 fb_pos = view_coord * u_terminal_size;
 
-    vec4 ch = texture(u_buffer, vec3(view_coord.x, view_coord.y, 0.0));
-    vec4 ch_attr = texture(u_buffer, vec3(view_coord.x, view_coord.y, 1.0));
+    vec2 view_coord2 = (gl_FragCoord.xy - u_position) / u_buffer_texture_resolution;
+    view_coord2 = vec2(view_coord2.s, 1.0 - view_coord2.t);
+
+    vec4 ch = texture(u_buffer, vec3(view_coord2, 0.0));
+    vec4 ch_attr = texture(u_buffer, vec3(view_coord2, 1.0));
     
     vec2 fract_fb_pos = fract(vec2(fb_pos.x, fb_pos.y));
 
@@ -65,12 +69,11 @@ void main (void) {
         }
     }
 
-    vec4 char_data = get_char(fract_fb_pos, ch_value, ch.a);
+    vec4 char_data = get_char(fract_fb_pos, ch_value, ch.a * 255.0);
     
     vec4 fg = get_palette_color(ch.y);
     vec4 bg = get_palette_color(ch.z);
 
-/*
     if (u_selection_attr >= 0.0) {
         float x = floor(fb_pos.x);
         float y = floor(fb_pos.y);
@@ -79,7 +82,7 @@ void main (void) {
             bg = fg;
             fg = tmp;
         }
-    }*/
+    }
 
     if (char_data.x > 0.5 && (ch_attr[3] == 0.0 || u_blink > 0)) {
         fragColor = fg;
@@ -107,7 +110,7 @@ void main (void) {
             fragColor = fg;
         }
     }
-/*
+
     if (u_selection_attr < 0.0 && u_caret_position.z > 0 && floor(fb_pos) == u_caret_position.xy) {
         if (u_caret_position.w == 0.0) { // underscore
             if (fract_fb_pos.y >= 13.0 / 16.0 && fract_fb_pos.y <= 15.0 / 16.0) {
@@ -118,5 +121,5 @@ void main (void) {
                 fragColor = get_palette_color(ch.y);
             }
         }
-    }*/
+    }
 }

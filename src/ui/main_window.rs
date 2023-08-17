@@ -9,10 +9,11 @@ use icy_engine::Buffer;
 
 use std::{
     cmp::max,
+    collections::btree_map::Range,
     env, fs,
     io::Error,
     path::{Path, PathBuf},
-    sync::Arc, collections::btree_map::Range,
+    sync::Arc,
 };
 
 use super::BufferView;
@@ -91,12 +92,10 @@ impl MainWindow {
                         command = Some(Command::Refresh);
                     }
                     let mut path_edit = self.path.to_str().unwrap().to_string();
-                    let _response = ui.add_sized(
-                        ui.available_size(),
-                        TextEdit::singleline(&mut path_edit),
-                    );
-                    
-                    /* 
+                    let _response =
+                        ui.add_sized(ui.available_size(), TextEdit::singleline(&mut path_edit));
+
+                    /*
                     if response.lost_focus() {
                         let path = PathBuf::from(&self.path_edit);
                         command = Some(Command::Open(path));
@@ -107,79 +106,74 @@ impl MainWindow {
 
             if self.selected_file.is_none() {
                 if self.files.len() > 0 {
-                  command = Some(Command::Select(0));
+                    command = Some(Command::Select(0));
                 }
             }
 
             let mut area = ScrollArea::vertical();
             let row_height = ui.text_style_height(&egui::TextStyle::Body);
 
-
             if let Some(sel) = self.scroll_pos {
                 area = area.vertical_scroll_offset(sel);
                 self.scroll_pos = None;
             }
-            let mut r = std::ops::Range::<usize> { start:0, end:0 };
+            let mut r = std::ops::Range::<usize> { start: 0, end: 0 };
 
-            let output = area.show_rows(
-                ui,
-                row_height,
-                self.files.len(),
-                |ui, range| {
-                    r = range.clone();
-                    ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                      let first = range.start;
-                      let mut i = 0;
-                      for path in self.files[range].iter() {
-                          let label = match path.is_dir() {
-                              true => "🗀 ",
-                              false => "🗋 ",
-                          }
-                          .to_string()
-                              + get_file_name(path);
+            let output = area.show_rows(ui, row_height, self.files.len(), |ui, range| {
+                r = range.clone();
+                ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
+                    let first = range.start;
+                    let mut i = 0;
+                    for path in self.files[range].iter() {
+                        let label = match path.is_dir() {
+                            true => "🗀 ",
+                            false => "🗋 ",
+                        }
+                        .to_string()
+                            + get_file_name(path);
 
-                          let is_selected = Some(first + i) == self.selected_file;
-                          let selectable_label = ui.selectable_label(is_selected, label);
-                          if selectable_label.clicked() {
-                              command = Some(Command::Select(first + i));
-                          }
+                        let is_selected = Some(first + i) == self.selected_file;
+                        let selectable_label = ui.selectable_label(is_selected, label);
+                        if selectable_label.clicked() {
+                            command = Some(Command::Select(first + i));
+                        }
 
-                          if selectable_label.double_clicked()
-                              || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                              if path.is_dir() {
-                                  command = Some(Command::OpenSelected);
-                              }
-                          }
-                          i += 1;
-                      }
-                  }) .response     
-                },
-            );
+                        if selectable_label.double_clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Enter))
+                        {
+                            if path.is_dir() {
+                                command = Some(Command::OpenSelected);
+                            }
+                        }
+                        i += 1;
+                    }
+                })
+                .response
+            });
 
             if let Some(s) = self.selected_file {
-              if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-                if s > 0  {
-                  command = Some(Command::Select(s - 1));
-                  if r.start > s - 1  {
-                    let spacing = ui.spacing().item_spacing;
-                    let pos = (row_height + spacing.y) * (s - 1) as f32;
-                    self.scroll_pos = Some(pos);
-                  }
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+                    if s > 0 {
+                        command = Some(Command::Select(s - 1));
+                        if r.start > s - 1 {
+                            let spacing = ui.spacing().item_spacing;
+                            let pos = (row_height + spacing.y) * (s - 1) as f32;
+                            self.scroll_pos = Some(pos);
+                        }
+                    }
                 }
-              }
-              
-              if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-                if s + 1 < self.files.len() {
-                  command = Some(Command::Select(s + 1));
-                  if r.end - 10 <= s   {
-                    let spacing = ui.spacing().item_spacing;
-                    let pos = (row_height + spacing.y) * (s + 1) as f32;
-                    self.scroll_pos = Some(pos);
-                  }
-                }
-              }
-            }
 
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+                    if s + 1 < self.files.len() {
+                        command = Some(Command::Select(s + 1));
+                        if r.end.saturating_sub(10) <= s {
+                            let spacing = ui.spacing().item_spacing;
+                            let pos = (row_height + spacing.y) * (s + 1) as f32;
+                            self.scroll_pos = Some(pos);
+                        }
+                    }
+                }
+            }
         });
 
         let top_margin_height: f32 = 0.;
@@ -254,21 +248,23 @@ impl MainWindow {
                 ui.set_height(scale_y * max_lines as f32 * font_dimensions.height as f32);
 
                 let first_line = (viewport.top() / char_size.y) as i32;
-                let scroll_back_line = max(0, first_line);
-                if scroll_back_line != buffer_view.lock().scroll_back_line {
-                    buffer_view.lock().scroll_back_line = scroll_back_line;
-                    buffer_view.lock().redraw_view();
+                {
+                    buffer_view.lock().char_size = char_size;
+                    if buffer_view.lock().viewport_top != viewport.top() {
+                        buffer_view.lock().viewport_top = viewport.top();
+                        buffer_view.lock().redraw_view();
+                    }
                 }
-                ui.set_width(rect_w);
+                // ui.set_width(rect_w);
 
                 let callback = egui::PaintCallback {
                     rect,
                     callback: std::sync::Arc::new(egui_glow::CallbackFn::new(
                         move |info, painter| {
-                            buffer_view.lock().update_buffer(painter.gl());
+                            // buffer_view.lock().update_buffer(paintr.gl());
                             buffer_view
                                 .lock()
-                                .paint(painter.gl(), info, rect, terminal_rect);
+                                .render_contents(painter.gl(), &info, terminal_rect);
                         },
                     )),
                 };
@@ -293,8 +289,8 @@ impl MainWindow {
 
     fn open_selected(&mut self) {
         if let Some(idx) = &self.selected_file {
-          let path = &self.files[*idx];
-          if path.is_dir() {
+            let path = &self.files[*idx];
+            if path.is_dir() {
                 self.set_path(path.clone())
             }
         }
@@ -310,7 +306,8 @@ impl MainWindow {
             &self.path,
             #[cfg(unix)]
             self.show_hidden,
-        ).unwrap();
+        )
+        .unwrap();
         self.select(None);
     }
 
@@ -318,7 +315,7 @@ impl MainWindow {
         if let Some(idx) = &file {
             let path = &self.files[*idx];
             if path.is_file() {
-                if let Ok(buf) =  Buffer::load_buffer(path, true) {
+                if let Ok(buf) = Buffer::load_buffer(path, true) {
                     self.buffer_view.lock().load_buffer(buf);
                 }
             }
