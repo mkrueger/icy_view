@@ -116,7 +116,6 @@ impl OutputRenderer {
             rect.left() * info.pixels_per_point,
             rect.top() * info.pixels_per_point,
         );
-
         gl.uniform_4_f32(
             gl.get_uniform_location(self.output_shader, "u_draw_rect")
                 .as_ref(),
@@ -134,6 +133,7 @@ impl OutputRenderer {
             (rect.right() - 3.) * info.pixels_per_point,
             (rect.bottom() - info.clip_rect.top() - 4.) * info.pixels_per_point,
         );
+
         gl.uniform_2_f32(
             gl.get_uniform_location(self.output_shader, "u_size")
                 .as_ref(),

@@ -104,7 +104,5 @@ void main() {
 	if (from.x <= uv.x && uv.x < to.x && 
 		from.y <= uv.y && uv.y < to.y) {
 		color = texture(u_render_texture, (uv - from) / (to - from)).xyz;
-	} else {
-		color = vec3(0.25, 0.27, 0.29);
 	}
 }    
