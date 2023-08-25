@@ -1,22 +1,19 @@
 use eframe::{
-    egui::{self, CentralPanel, Context, CursorIcon},
-    epaint::{Color32, Pos2, Rect},
+    egui::{self, CentralPanel, Context, Response},
+    epaint::{Color32, Vec2},
     App, Frame,
 };
 
-use egui::{Layout, ScrollArea, TextEdit, Ui, Vec2};
+use egui::{Layout, ScrollArea, TextEdit, Ui};
 use icy_engine::Buffer;
+use icy_engine_egui::{BufferView, MonitorSettings};
 
 use std::{
-    cmp::max,
-    collections::btree_map::Range,
     env, fs,
     io::Error,
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-use super::BufferView;
 
 pub struct MainWindow {
     pub buffer_view: Arc<eframe::epaint::mutex::Mutex<BufferView>>,
@@ -42,8 +39,6 @@ impl App for MainWindow {
     }
 }
 
-const SIDEPANEL_WITDH: f32 = 200.;
-
 impl MainWindow {
     pub fn new(cc: &eframe::CreationContext<'_>, initial_path: Option<PathBuf>) -> Self {
         let mut path = initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
@@ -56,7 +51,8 @@ impl MainWindow {
             .gl
             .as_ref()
             .expect("You need to run eframe with the glow backend");
-        let view = BufferView::new(gl);
+        let mut view = BufferView::new(gl, glow::NEAREST as i32);
+        view.caret.is_visible = false;
 
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
@@ -81,17 +77,9 @@ impl MainWindow {
 
         // Rows with files.
 
-        let top_margin_height: f32 = 0.;
-
-        let frame_no_margins = egui::containers::Frame::none()
-            .inner_margin(egui::style::Margin::same(0.0))
-            .fill(Color32::BLACK);
-        egui::CentralPanel::default()
-            .frame(frame_no_margins)
-            .show_inside(ui, |ui| self.custom_painting(ui, top_margin_height));
-
-        egui::SidePanel::left("left_panel")
-            .exact_width(SIDEPANEL_WITDH)
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .default_height(400.)
+            .resizable(true)
             .show_inside(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
@@ -118,10 +106,8 @@ impl MainWindow {
                 });
                 ui.add_space(ui.spacing().item_spacing.y);
 
-                if self.selected_file.is_none() {
-                    if self.files.len() > 0 {
-                        command = Some(Command::Select(0));
-                    }
+                if self.selected_file.is_none() && !self.files.is_empty() {
+                    command = Some(Command::Select(0));
                 }
 
                 let mut area = ScrollArea::vertical();
@@ -132,13 +118,11 @@ impl MainWindow {
                     self.scroll_pos = None;
                 }
                 let mut r = std::ops::Range::<usize> { start: 0, end: 0 };
-
-                let output = area.show_rows(ui, row_height, self.files.len(), |ui, range| {
+                area.show_rows(ui, row_height, self.files.len(), |ui, range| {
                     r = range.clone();
                     ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
                         let first = range.start;
-                        let mut i = 0;
-                        for path in self.files[range].iter() {
+                        for (i, path) in self.files[range].iter().enumerate() {
                             let label = match path.is_dir() {
                                 true => "🗀 ",
                                 false => "🗋 ",
@@ -152,43 +136,45 @@ impl MainWindow {
                                 command = Some(Command::Select(first + i));
                             }
 
-                            if selectable_label.double_clicked()
-                                || ui.input(|i| i.key_pressed(egui::Key::Enter))
+                            if (selectable_label.double_clicked()
+                                || ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                                && path.is_dir()
                             {
-                                if path.is_dir() {
-                                    command = Some(Command::OpenSelected);
-                                }
+                                command = Some(Command::OpenSelected);
                             }
-                            i += 1;
                         }
                     })
                     .response
                 });
 
                 if let Some(s) = self.selected_file {
-                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-                        if s > 0 {
-                            command = Some(Command::Select(s - 1));
-                            if r.start > s - 1 {
-                                let spacing = ui.spacing().item_spacing;
-                                let pos = (row_height + spacing.y) * (s - 1) as f32;
-                                self.scroll_pos = Some(pos);
-                            }
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
+                        command = Some(Command::Select(s - 1));
+                        if r.start > s - 1 {
+                            let spacing = ui.spacing().item_spacing;
+                            let pos = (row_height + spacing.y) * (s - 1) as f32;
+                            self.scroll_pos = Some(pos);
                         }
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-                        if s + 1 < self.files.len() {
-                            command = Some(Command::Select(s + 1));
-                            if r.end.saturating_sub(10) <= s {
-                                let spacing = ui.spacing().item_spacing;
-                                let pos = (row_height + spacing.y) * (s + 1) as f32;
-                                self.scroll_pos = Some(pos);
-                            }
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len()
+                    {
+                        command = Some(Command::Select(s + 1));
+                        if r.end.saturating_sub(10) <= s {
+                            let spacing = ui.spacing().item_spacing;
+                            let pos = (row_height + spacing.y) * (s + 1) as f32;
+                            self.scroll_pos = Some(pos);
                         }
                     }
                 }
             });
+
+        let frame_no_margins = egui::containers::Frame::none()
+            .inner_margin(egui::style::Margin::same(0.0))
+            .fill(Color32::BLACK);
+        egui::CentralPanel::default()
+            .frame(frame_no_margins)
+            .show_inside(ui, |ui| self.custom_painting(ui));
 
         if let Some(command) = command {
             match command {
@@ -207,85 +193,15 @@ impl MainWindow {
         }
     }
 
-    fn custom_painting(&mut self, ui: &mut egui::Ui, top_margin_height: f32) {
-        let buf_h = self.buffer_view.lock().buf.get_buffer_height();
-        let real_height = self.buffer_view.lock().buf.get_real_buffer_height();
-
-        ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .show_viewport(ui, |ui, viewport| {
-                let size: Vec2 = Vec2::new(ui.available_width(), ui.available_height());
-                let side_width = SIDEPANEL_WITDH + 28.0;
-                let rect = Rect::from_min_size(Pos2::new(side_width, 0.0), size);
-
-                let size = Vec2::new(ui.available_width() - side_width, ui.available_height());
-                let mut response = ui.allocate_rect(rect, egui::Sense::click());
-
-                let buffer_view = self.buffer_view.clone();
-                let buf_w = buffer_view.lock().buf.get_buffer_width();
-                // let h = max(buf_h, buffer_view.lock().buf.get_real_buffer_height());
-
-                let font_dimensions = buffer_view.lock().buf.get_font_dimensions();
-
-                let mut scale_x = size.x / font_dimensions.width as f32 / buf_w as f32;
-                let mut scale_y = size.y / font_dimensions.height as f32 / buf_h as f32;
-
-                if scale_x < scale_y {
-                    scale_y = scale_x;
-                } else {
-                    scale_x = scale_y;
-                }
-
-                let char_size = Vec2::new(
-                    font_dimensions.width as f32 * scale_x,
-                    font_dimensions.height as f32 * scale_y,
-                );
-
-                let rect_w = buf_w as f32 * char_size.x;
-                let rect_h = buf_h as f32 * char_size.y;
-
-                let terminal_rect = Rect::from_min_size(
-                    Pos2::new(
-                        21. + (rect.width() - rect_w) / 2.,
-                        ((rect.height() - rect_h) / 2.).floor(),
-                    )
-                    .ceil(),
-                    Vec2::new(rect_w, rect_h),
-                );
-
-                let buf_h = buffer_view.lock().buf.get_buffer_height();
-
-                let max_lines = max(0, real_height - buf_h);
-
-                // Set the scrolling height.
-                ui.set_height(char_size.y * real_height as f32 - terminal_rect.height());
-
-                {
-                    buffer_view.lock().char_size = char_size;
-                    if buffer_view.lock().viewport_top != viewport.top() {
-                        buffer_view.lock().viewport_top = viewport.top();
-                        buffer_view.lock().redraw_view();
-                    }
-                }
-
-                let callback = egui::PaintCallback {
-                    rect,
-                    callback: std::sync::Arc::new(egui_glow::CallbackFn::new(
-                        move |info, painter| {
-                            buffer_view
-                                .lock()
-                                .render_contents(painter.gl(), &info, terminal_rect);
-                        },
-                    )),
-                };
-                ui.painter().add(callback);
-
-                response.dragged = false;
-                response.drag_released = true;
-                response.is_pointer_button_down_on = false;
-                response.interact_pointer_pos = None;
-                response
-            });
+    fn custom_painting(&mut self, ui: &mut egui::Ui) -> Response {
+        let opt = icy_engine_egui::TerminalOptions {
+            focus_lock: true,
+            stick_to_bottom: false,
+            scale: Some(Vec2::new(2.0, 2.0)),
+            ..Default::default()
+        };
+        let (response, _) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+        response
     }
 
     fn open_selected(&mut self) {
@@ -317,7 +233,7 @@ impl MainWindow {
             let path = &self.files[*idx];
             if path.is_file() {
                 if let Ok(buf) = Buffer::load_buffer(path, true) {
-                    self.buffer_view.lock().load_buffer(buf);
+                    self.buffer_view.lock().set_buffer(buf);
                 }
             }
         };

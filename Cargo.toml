@@ -1,6 +1,6 @@
 [package]
 name = "icy_view"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "A fast ansi art viewer."
 
@@ -21,3 +21,5 @@ egui_glow = "0.22.0"
 glow = "0.12.2"
 
 icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
+icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
+#icy_engine_egui = { path ="../icy_engine_egui" }
