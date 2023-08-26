@@ -3,6 +3,9 @@ name = "icy_view"
 version = "0.3.0"
 edition = "2021"
 description = "A fast ansi art viewer."
+authors = ["Mike Krüger <mkrueger@posteo.de>"]
+license = "Apache-2.0"
+repository = "https://github.com/mkrueger/icy_view"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,7 +15,6 @@ identifier = "com.github.icy_view"
 icon = [ "assets/128x128@2x.png" ]
 resources = []
 copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
-
 
 [dependencies]
 eframe = "0.22"
