@@ -1,8 +1,11 @@
 use eframe::egui;
 use egui::{Layout, ScrollArea, TextEdit, Ui};
+use egui_extras::{Column, TableBuilder};
+use icy_engine::SauceData;
 
 use std::{
-    env, fs,
+    env,
+    fs::{self, File},
     io::Error,
     path::{Path, PathBuf},
 };
@@ -11,14 +14,22 @@ pub enum Command {
     Select(usize),
 }
 
+#[derive(Clone)]
+pub struct FileEntry {
+    pub path: PathBuf,
+
+    pub read_sauce: bool,
+    pub sauce: Option<SauceData>,
+}
+
 pub struct FileView {
     /// Current opened path.
     path: PathBuf,
     /// Selected file path
-    selected_file: Option<usize>,
+    pub selected_file: Option<usize>,
     scroll_pos: Option<usize>,
     /// Files in directory.
-    pub files: Vec<PathBuf>,
+    pub files: Vec<FileEntry>,
 
     // Show hidden files on unix systems.
     #[cfg(unix)]
@@ -76,78 +87,115 @@ impl FileView {
             //  command = Some(Command::Select(0));
         }
 
-        let mut area = ScrollArea::vertical();
+        let area = ScrollArea::vertical();
+        // let row_height = ui.text_style_height(&egui::TextStyle::Body);
         let row_height = ui.text_style_height(&egui::TextStyle::Body);
 
         area.show(ui, |ui| {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                let first = 0;
-                let f = self.files.to_vec();
-                for (i, path) in f.iter().enumerate().clone() {
-                    let label = match path.is_dir() {
-                        true => "🗀 ",
-                        false => "🗋 ",
-                    }
-                    .to_string()
-                        + get_file_name(path);
+                let table = TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .min_scrolled_height(0.0);
 
-                    let is_selected = Some(first + i) == self.selected_file;
-                    let selectable_label = ui.selectable_label(is_selected, label);
-                    if selectable_label.clicked() {
-                        command = self.select(Some(first + i));
-                    }
-                    if let Some(sel) = self.scroll_pos {
-                        if sel == i {
-                            ui.scroll_to_rect(selectable_label.rect, None);
-                            self.scroll_pos = None;
+                table
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("File");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Title");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Author");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Group");
+                        });
+                    })
+                    .body(|mut body| {
+                        let first = 0;
+                        let f = self.files.clone();
+                        for (i, entry) in f.iter().enumerate() {
+                            body.row(row_height, |mut row| {
+                                row.col(|ui| {
+                                    let label = match entry.path.is_dir() {
+                                        true => "🗀 ",
+                                        false => "🗋 ",
+                                    }
+                                    .to_string()
+                                        + get_file_name(&entry.path);
+                                    let is_selected = Some(first + i) == self.selected_file;
+                                    let selectable_label = ui.selectable_label(is_selected, label);
+                                    if selectable_label.clicked() && entry.path.is_file() {
+                                        command = Some(Command::Select(first + i));
+                                    }
+                                    if let Some(sel) = self.scroll_pos {
+                                        if sel == i {
+                                            ui.scroll_to_rect(selectable_label.rect, None);
+                                            self.scroll_pos = None;
+                                        }
+                                    }
+
+                                    if (selectable_label.double_clicked()
+                                        || ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                                        && entry.path.is_dir()
+                                    {
+                                        self.open(first + i);
+                                    }
+                                });
+
+                                row.col(|ui| {
+                                    if let Some(sauce) = &entry.sauce {
+                                        ui.label(sauce.title.to_string());
+                                    } else {
+                                        ui.label("");
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if let Some(sauce) = &entry.sauce {
+                                        ui.label(sauce.author.to_string());
+                                    } else {
+                                        ui.label("");
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if let Some(sauce) = &entry.sauce {
+                                        ui.label(sauce.group.to_string());
+                                    } else {
+                                        ui.label("");
+                                    }
+                                });
+                            });
                         }
-                    }
-
-                    if (selectable_label.double_clicked()
-                        || ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                        && path.is_dir()
-                    {
-                        self.open_selected();
-                        return;
-                    }
-                }
+                    });
             })
             .response
         });
 
         if let Some(s) = self.selected_file {
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
-                command = self.select(Some(s - 1));
+                command = Some(Command::Select(s - 1));
                 self.scroll_pos = Some(s - 1);
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
-                command = self.select(Some(s + 1));
+                command = Some(Command::Select(s + 1));
                 self.scroll_pos = Some(s + 1);
             }
         }
         command
     }
 
-    fn select(&mut self, file: Option<usize>) -> Option<Command> {
-        let mut res = None;
-        if let Some(idx) = &file {
-            let path = &self.files[*idx];
-            if path.is_file() {
-                res = Some(Command::Select(*idx));
-            }
-        };
-
-        self.selected_file = file;
-        res
-    }
-
-    fn open_selected(&mut self) {
-        if let Some(idx) = &self.selected_file {
-            let path = &self.files[*idx];
-            if path.is_dir() {
-                self.set_path(path.clone())
-            }
+    fn open(&mut self, idx: usize) {
+        let entry = &self.files[idx];
+        if entry.path.is_dir() {
+            self.set_path(entry.path.clone())
         }
     }
     pub fn set_path(&mut self, path: impl Into<PathBuf>) {
@@ -161,7 +209,39 @@ impl FileView {
             #[cfg(unix)]
             self.show_hidden,
         )
-        .unwrap();
+        .unwrap()
+        .iter()
+        .map(|f| FileEntry {
+            path: f.clone(),
+            read_sauce: false,
+            sauce: None,
+        })
+        .collect();
+
+        for entry in &mut self.files {
+            if !entry.read_sauce {
+                entry.read_sauce = true;
+
+                let file = File::open(&entry.path);
+
+                if let Ok(file) = file {
+                    let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
+                    if let Ok(map) = mmap {
+                        println!("mmap ok!");
+                        if let Ok(data) = SauceData::extract(&map) {
+                            entry.sauce = Some(data);
+                        }
+                        /*
+                        assert_eq!(b"# memmap", &mmap[0..8]);
+
+                        if let Ok(data) = fs::read(&entry.path) {
+                            entry.sauce = SauceData::extract(&data).ok();
+                        }*/
+                    }
+                }
+            }
+        }
+
         // self.select(None);
     }
 }
