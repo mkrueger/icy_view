@@ -100,6 +100,7 @@ impl FileView {
                     .column(Column::auto())
                     .column(Column::auto())
                     .column(Column::auto())
+                    .column(Column::auto())
                     .column(Column::remainder())
                     .min_scrolled_height(0.0);
 
@@ -116,6 +117,9 @@ impl FileView {
                         });
                         header.col(|ui| {
                             ui.strong("Group");
+                        });
+                        header.col(|ui| {
+                            ui.strong("Screen mode");
                         });
                     })
                     .body(|mut body| {
@@ -167,6 +171,20 @@ impl FileView {
                                 row.col(|ui| {
                                     if let Some(sauce) = &entry.sauce {
                                         ui.label(sauce.group.to_string());
+                                    } else {
+                                        ui.label("");
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if entry.path.is_dir() {
+                                        ui.label("");
+                                    } else if let Some(sauce) = &entry.sauce {
+                                        ui.label(format!(
+                                            "{}x{} {}",
+                                            sauce.buffer_size.width,
+                                            sauce.buffer_size.height,
+                                            if sauce.use_ice { "(ICE)" } else { "" }
+                                        ));
                                     } else {
                                         ui.label("");
                                     }
@@ -227,16 +245,9 @@ impl FileView {
                 if let Ok(file) = file {
                     let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
                     if let Ok(map) = mmap {
-                        println!("mmap ok!");
                         if let Ok(data) = SauceData::extract(&map) {
                             entry.sauce = Some(data);
                         }
-                        /*
-                        assert_eq!(b"# memmap", &mmap[0..8]);
-
-                        if let Ok(data) = fs::read(&entry.path) {
-                            entry.sauce = SauceData::extract(&data).ok();
-                        }*/
                     }
                 }
             }
