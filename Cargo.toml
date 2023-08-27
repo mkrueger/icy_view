@@ -9,13 +9,6 @@ repository = "https://github.com/mkrueger/icy_view"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[package.metadata.bundle]
-name = "Icy View"
-identifier = "com.github.icy_view"
-icon = [ "build/mac/128x128@2x.png" ]
-resources = []
-copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
-
 [dependencies]
 eframe = "0.22"
 egui_extras = { version="0.22.0", features = ["svg", "image"] }
@@ -31,6 +24,14 @@ icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
 
 icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
 #icy_engine_egui = { path ="../icy_engine_egui" }
+
+
+[package.metadata.bundle]
+name = "Icy View"
+identifier = "com.github.icy_view"
+icon = [ "build/mac/128x128@2x.png" ]
+resources = []
+copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
 
 [package.metadata.deb]
 section="utils"
