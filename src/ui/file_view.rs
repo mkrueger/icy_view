@@ -6,7 +6,7 @@ use icy_engine::SauceData;
 use std::{
     env,
     fs::{self, File},
-    io::Error,
+    io::{Error, Read},
     path::{Path, PathBuf},
 };
 
@@ -17,9 +17,22 @@ pub enum Command {
 #[derive(Clone)]
 pub struct FileEntry {
     pub path: PathBuf,
-
+    pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
     pub sauce: Option<SauceData>,
+}
+
+impl FileEntry {
+    pub fn get_data(&self) -> Vec<u8> {
+        if let Some(data) = &self.file_data {
+            return data.clone();
+        }
+        fs::read(&self.path).expect("Folder icon file donest exist")
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.file_data.is_some() || self.path.is_file()
+    }
 }
 
 pub struct FileView {
@@ -41,7 +54,14 @@ impl FileView {
         let mut path: PathBuf =
             initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
 
-        if path.is_file() {
+        if path.is_file()
+            && path
+                .extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                != "zip"
+        {
             path.pop();
         }
         Self {
@@ -136,7 +156,7 @@ impl FileView {
                                         + get_file_name(&entry.path);
                                     let is_selected = Some(first + i) == self.selected_file;
                                     let selectable_label = ui.selectable_label(is_selected, label);
-                                    if selectable_label.clicked() && entry.path.is_file() {
+                                    if selectable_label.clicked() && entry.is_file() {
                                         command = Some(Command::Select(first + i));
                                     }
                                     if let Some(sel) = self.scroll_pos {
@@ -222,6 +242,30 @@ impl FileView {
     }
 
     pub fn refresh(&mut self) {
+        if self.path.is_file() {
+            self.files.clear();
+            let file = fs::File::open(&self.path).unwrap();
+            let mut archive = zip::ZipArchive::new(file).unwrap();
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i).unwrap();
+                let mut data = Vec::new();
+                file.read_to_end(&mut data).unwrap();
+                let sauce = SauceData::extract(&data).ok();
+
+                let entry = FileEntry {
+                    path: file
+                        .enclosed_name()
+                        .unwrap_or(Path::new("unknown"))
+                        .to_path_buf(),
+                    file_data: Some(data),
+                    read_sauce: true,
+                    sauce,
+                };
+                self.files.push(entry);
+            }
+            return;
+        }
+
         self.files = read_folder(
             &self.path,
             #[cfg(unix)]
@@ -233,6 +277,7 @@ impl FileView {
             path: f.clone(),
             read_sauce: false,
             sauce: None,
+            file_data: None,
         })
         .collect();
 

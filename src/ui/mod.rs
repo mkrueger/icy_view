@@ -9,7 +9,9 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
+
+use crate::Cli;
 
 use self::file_view::{Command, FileView};
 
@@ -33,7 +35,7 @@ impl App for MainWindow {
 }
 
 impl MainWindow {
-    pub fn new(cc: &eframe::CreationContext<'_>, initial_path: Option<PathBuf>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
         let gl = cc
             .gl
             .as_ref()
@@ -47,7 +49,7 @@ impl MainWindow {
 
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
-            file_view: FileView::new(initial_path),
+            file_view: FileView::new(cli.path),
             start_time: std::time::Instant::now(),
             in_scroll: false,
             image: None,
@@ -118,32 +120,32 @@ impl MainWindow {
     fn open_selected(&mut self, file: usize) {
         self.image = None;
         let entry = &self.file_view.files[file];
-        if entry.path.is_file() {
+        if entry.is_file() {
             if let Some(ext) = entry.path.extension() {
                 let ext = ext.to_ascii_lowercase();
                 if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
-                    let buffer: Vec<u8> =
-                        fs::read(&entry.path).expect("Folder icon file donest exist");
                     if let Ok(image) =
-                        egui_extras::RetainedImage::from_image_bytes("image", &buffer)
+                        egui_extras::RetainedImage::from_image_bytes("image", &entry.get_data())
                     {
                         self.image = Some(image);
                         return;
                     }
                 }
                 if ext == "svg" {
-                    let buffer: Vec<u8> =
-                        fs::read(&entry.path).expect("Folder icon file donest exist");
                     if let Ok(image) =
-                        egui_extras::RetainedImage::from_svg_bytes("svg_image", &buffer)
+                        egui_extras::RetainedImage::from_svg_bytes("svg_image", &entry.get_data())
                     {
                         self.image = Some(image);
                         return;
                     }
                 }
+                if ext == "zip" {
+                    self.file_view.set_path(entry.path.clone());
+                    return;
+                }
             }
 
-            if let Ok(buf) = Buffer::load_buffer(&entry.path, true) {
+            if let Ok(buf) = Buffer::from_bytes(&entry.path, true, &entry.get_data()) {
                 self.start_time = std::time::Instant::now();
                 self.in_scroll = true;
                 self.buffer_view.lock().set_buffer(buf);
