@@ -90,16 +90,19 @@ impl MainWindow {
             return;
         }
 
+        let w = (ui.available_width() / 8.0).floor();
+        let scale = (w / 80.0).min(2.0);
         let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).floor();
         let opt = icy_engine_egui::TerminalOptions {
             focus_lock: true,
             stick_to_bottom: false,
-            scale: Some(Vec2::new(2.0, 2.0)),
+            scale: Some(Vec2::new(scale, scale)),
             font_extension: icy_engine_egui::FontExtension::Off,
             use_terminal_height: false,
             scroll_offset: if self.in_scroll { Some(sp) } else { None },
             ..Default::default()
         };
+
         let (_, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
 
         // stop scrolling when reached the end.

@@ -1,3 +1,4 @@
+use directories::UserDirs;
 use eframe::egui;
 use egui::{Layout, ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, TableBuilder};
@@ -51,8 +52,11 @@ pub struct FileView {
 
 impl FileView {
     pub fn new(initial_path: Option<PathBuf>) -> Self {
-        let mut path: PathBuf =
-            initial_path.unwrap_or_else(|| env::current_dir().unwrap_or_default());
+        let mut path = if let Some(path) = initial_path {
+            path
+        } else {
+            UserDirs::new().unwrap().home_dir().to_path_buf()
+        };
 
         if path.is_file()
             && path
