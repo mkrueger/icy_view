@@ -18,11 +18,11 @@ copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
 
 [dependencies]
 eframe = "0.22"
-egui_extras = { version="0.22.0", features = ["svg"] }
+egui_extras = { version="0.22.0", features = ["svg", "image"] }
 egui_glow = "0.22.0"
 glow = "0.12.2"
 memmap = "0.7.0"
-
+image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
 icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
 #icy_engine = { path ="../icy_engine" }
 

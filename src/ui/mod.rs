@@ -1,14 +1,15 @@
 use eframe::{
-    egui::{self, CentralPanel, Context, Response},
+    egui::{self, CentralPanel, Context, ScrollArea},
     epaint::{Color32, Vec2},
     App, Frame,
 };
 
 use egui::Ui;
+use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 use self::file_view::{Command, FileView};
 
@@ -19,6 +20,8 @@ pub struct MainWindow {
     pub file_view: FileView,
     pub start_time: std::time::Instant,
     pub in_scroll: bool,
+
+    image: Option<RetainedImage>,
 }
 
 impl App for MainWindow {
@@ -47,6 +50,7 @@ impl MainWindow {
             file_view: FileView::new(initial_path),
             start_time: std::time::Instant::now(),
             in_scroll: false,
+            image: None,
         }
     }
 
@@ -83,7 +87,14 @@ impl MainWindow {
         }
     }
 
-    fn custom_painting(&mut self, ui: &mut egui::Ui) -> Response {
+    fn custom_painting(&mut self, ui: &mut egui::Ui) {
+        if let Some(img) = &self.image {
+            ScrollArea::both().show(ui, |ui| {
+                img.show(ui);
+            });
+            return;
+        }
+
         let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).floor();
         let opt = icy_engine_egui::TerminalOptions {
             focus_lock: true,
@@ -94,8 +105,7 @@ impl MainWindow {
             scroll_offset: if self.in_scroll { Some(sp) } else { None },
             ..Default::default()
         };
-        let (response, calc) =
-            icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+        let (_, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
 
         // stop scrolling when reached the end.
         if sp > calc.font_height * (calc.char_height - calc.buffer_char_height).max(0.0) {
@@ -103,12 +113,36 @@ impl MainWindow {
         }
 
         self.in_scroll &= !calc.set_scroll_position_set_by_user;
-        response
     }
 
     fn open_selected(&mut self, file: usize) {
+        self.image = None;
         let entry = &self.file_view.files[file];
         if entry.path.is_file() {
+            if let Some(ext) = entry.path.extension() {
+                let ext = ext.to_ascii_lowercase();
+                if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
+                    let buffer: Vec<u8> =
+                        fs::read(&entry.path).expect("Folder icon file donest exist");
+                    if let Ok(image) =
+                        egui_extras::RetainedImage::from_image_bytes("image", &buffer)
+                    {
+                        self.image = Some(image);
+                        return;
+                    }
+                }
+                if ext == "svg" {
+                    let buffer: Vec<u8> =
+                        fs::read(&entry.path).expect("Folder icon file donest exist");
+                    if let Ok(image) =
+                        egui_extras::RetainedImage::from_svg_bytes("svg_image", &buffer)
+                    {
+                        self.image = Some(image);
+                        return;
+                    }
+                }
+            }
+
             if let Ok(buf) = Buffer::load_buffer(&entry.path, true) {
                 self.start_time = std::time::Instant::now();
                 self.in_scroll = true;
