@@ -44,18 +44,16 @@ pub struct FileView {
     scroll_pos: Option<usize>,
     /// Files in directory.
     pub files: Vec<FileEntry>,
-
-    // Show hidden files on unix systems.
-    #[cfg(unix)]
-    show_hidden: bool,
 }
 
 impl FileView {
     pub fn new(initial_path: Option<PathBuf>) -> Self {
         let mut path = if let Some(path) = initial_path {
             path
+        } else if let Some(user_dirs) = UserDirs::new() {
+            user_dirs.home_dir().to_path_buf()
         } else {
-            UserDirs::new().unwrap().home_dir().to_path_buf()
+            env::current_dir().unwrap_or_default()
         };
 
         if path.is_file()
@@ -73,9 +71,6 @@ impl FileView {
             selected_file: None,
             scroll_pos: None,
             files: Vec::new(),
-
-            #[cfg(unix)]
-            show_hidden: false,
         }
     }
 
@@ -94,15 +89,16 @@ impl FileView {
                 if response.clicked() {
                     self.refresh();
                 }
-                let mut path_edit = self.path.to_str().unwrap().to_string();
-                let _response =
-                    ui.add_sized(ui.available_size(), TextEdit::singleline(&mut path_edit));
-
-                /*
-                if response.lost_focus() {
-                    let path = PathBuf::from(&self.path_edit);
-                    command = Some(Command::Open(path));
-                };*/
+                match self.path.to_str() {
+                    Some(path) => {
+                        let mut path_edit = path.to_string();
+                        let _response =
+                            ui.add_sized(ui.available_size(), TextEdit::singleline(&mut path_edit));
+                    }
+                    None => {
+                        ui.colored_label(ui.style().visuals.error_fg_color, "Invalid path");
+                    }
+                }
             });
         });
         ui.add_space(ui.spacing().item_spacing.y);
@@ -246,44 +242,64 @@ impl FileView {
     }
 
     pub fn refresh(&mut self) {
-        if self.path.is_file() {
-            self.files.clear();
-            let file = fs::File::open(&self.path).unwrap();
-            let mut archive = zip::ZipArchive::new(file).unwrap();
-            for i in 0..archive.len() {
-                let mut file = archive.by_index(i).unwrap();
-                let mut data = Vec::new();
-                file.read_to_end(&mut data).unwrap();
-                let sauce = SauceData::extract(&data).ok();
+        self.files.clear();
 
-                let entry = FileEntry {
-                    path: file
-                        .enclosed_name()
-                        .unwrap_or(Path::new("unknown"))
-                        .to_path_buf(),
-                    file_data: Some(data),
-                    read_sauce: true,
-                    sauce,
-                };
-                self.files.push(entry);
+        if self.path.is_file() {
+            match fs::File::open(&self.path) {
+                Ok(file) => match zip::ZipArchive::new(file) {
+                    Ok(mut archive) => {
+                        for i in 0..archive.len() {
+                            match archive.by_index(i) {
+                                Ok(mut file) => {
+                                    let mut data = Vec::new();
+                                    file.read_to_end(&mut data).unwrap_or_default();
+                                    let sauce = SauceData::extract(&data).ok();
+
+                                    let entry = FileEntry {
+                                        path: file
+                                            .enclosed_name()
+                                            .unwrap_or(Path::new("unknown"))
+                                            .to_path_buf(),
+                                        file_data: Some(data),
+                                        read_sauce: true,
+                                        sauce,
+                                    };
+                                    self.files.push(entry);
+                                }
+                                Err(err) => {
+                                    log::error!("Error reading zip file: {}", err);
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Error reading zip archive: {}", err);
+                    }
+                },
+                Err(err) => {
+                    log::error!("Failed to open zip file: {}", err);
+                }
             }
             return;
         }
 
-        self.files = read_folder(
-            &self.path,
-            #[cfg(unix)]
-            self.show_hidden,
-        )
-        .unwrap()
-        .iter()
-        .map(|f| FileEntry {
-            path: f.clone(),
-            read_sauce: false,
-            sauce: None,
-            file_data: None,
-        })
-        .collect();
+        let folders = read_folder(&self.path);
+        match folders {
+            Ok(folders) => {
+                self.files = folders
+                    .iter()
+                    .map(|f| FileEntry {
+                        path: f.clone(),
+                        read_sauce: false,
+                        sauce: None,
+                        file_data: None,
+                    })
+                    .collect();
+            }
+            Err(err) => {
+                log::error!("Failed to read folder: {}", err);
+            }
+        }
 
         for entry in &mut self.files {
             if !entry.read_sauce {
@@ -329,7 +345,7 @@ extern "C" {
     pub fn GetLogicalDrives() -> u32;
 }
 
-fn read_folder(path: &Path, #[cfg(unix)] show_hidden: bool) -> Result<Vec<PathBuf>, Error> {
+fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
     #[cfg(windows)]
     let drives = {
         let mut drives = unsafe { GetLogicalDrives() };
@@ -375,17 +391,9 @@ fn read_folder(path: &Path, #[cfg(unix)] show_hidden: bool) -> Result<Vec<PathBu
                     if !path.is_file() {
                         return false;
                     }
-                    // Filter.
-                    /* if let Some(filter) = filter.as_ref() {
-                      if !filter(path) {
-                        return false;
-                      }
-                    } else if dialog_type == DialogType::SelectFolder {
-                      return false;
-                    }*/
                 }
                 #[cfg(unix)]
-                if !show_hidden && get_file_name(path).starts_with('.') {
+                if get_file_name(path).starts_with('.') {
                     return false;
                 }
                 true

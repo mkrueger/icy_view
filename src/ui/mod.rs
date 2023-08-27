@@ -1,10 +1,9 @@
 use eframe::{
-    egui::{self, CentralPanel, Context, ScrollArea},
+    egui::{self, Context, ScrollArea},
     epaint::{Color32, Vec2},
     App, Frame,
 };
 
-use egui::Ui;
 use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
