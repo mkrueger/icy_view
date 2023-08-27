@@ -1,18 +1,12 @@
-         -* ICY TERM #VERSION *-
+         -* ICY VIEW #VERSION *-
 
-A modern terminal program for BBS systems.
+A cross platform ansi art viewer.
 
-- Written in pure rust - fast & secure
-- Multi platform Windows, OSX, Linux
-- X/Y/Z Modem + variants
-- 3D accelerated
-- Copy & Paste
-- IEMSI support
-- Supports CP437, PETSCII, ATASCII, 
-  VIEWDATA
+- Supports Ansi, Ascii, Artworx ADF,
+  Avatar, BIN, XBIN, PCBoard, iCE, 
+  Tundra Draw
+- Various picture formats
+- Can open zip files directly
 
 For latest builds
-Visit Crazy Paradise BBS WHQ: cpbbs.de:2323
-
-Development
-GitHub https://github.com/mkrueger/icy_term
+GitHub https://github.com/mkrueger/icy_view
