@@ -77,7 +77,7 @@ impl FileView {
 
     pub(crate) fn show_ui(&mut self, ui: &mut Ui) -> Option<Command> {
         let mut command: Option<Command> = None;
-
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
                 let response = ui.button("⬆").on_hover_text("Parent Folder");

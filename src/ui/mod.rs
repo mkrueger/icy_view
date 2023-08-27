@@ -28,9 +28,35 @@ pub struct MainWindow {
 
 impl App for MainWindow {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        CentralPanel::default().show(ctx, |ui| {
-            self.ui_in_window(ctx, ui);
-        });
+        egui::TopBottomPanel::bottom("bottom_panel")
+            //   egui::SidePanel::left("left_panel")
+            .min_height(300.)
+            .resizable(true)
+            .show(ctx, |ui| {
+                let command = self.file_view.show_ui(ui);
+                if let Some(command) = command {
+                    match command {
+                        Command::Select(file) => {
+                            self.file_view.selected_file = Some(file);
+                            self.open_selected(file);
+                            ctx.request_repaint();
+                        }
+                    };
+                }
+            });
+
+        let frame_no_margins = egui::containers::Frame::none()
+            .outer_margin(egui::style::Margin::same(0.0))
+            .inner_margin(egui::style::Margin::same(0.0))
+            .fill(Color32::BLACK);
+        egui::CentralPanel::default()
+            .frame(frame_no_margins)
+            .show(ctx, |ui| self.custom_painting(ui));
+        if self.in_scroll {
+            ctx.request_repaint();
+        } else {
+            ctx.request_repaint_after(Duration::from_millis(150));
+        }
     }
 }
 
@@ -53,39 +79,6 @@ impl MainWindow {
             start_time: std::time::Instant::now(),
             in_scroll: false,
             image: None,
-        }
-    }
-
-    fn ui_in_window(&mut self, ctx: &Context, ui: &mut Ui) {
-        // Rows with files.
-
-        egui::TopBottomPanel::bottom("bottom_panel")
-            //   egui::SidePanel::left("left_panel")
-            .min_height(300.)
-            .resizable(true)
-            .show_inside(ui, |ui| {
-                let command = self.file_view.show_ui(ui);
-                if let Some(command) = command {
-                    match command {
-                        Command::Select(file) => {
-                            self.file_view.selected_file = Some(file);
-                            self.open_selected(file);
-                            ctx.request_repaint();
-                        }
-                    };
-                }
-            });
-
-        let frame_no_margins = egui::containers::Frame::none()
-            .inner_margin(egui::style::Margin::same(0.0))
-            .fill(Color32::BLACK);
-        egui::CentralPanel::default()
-            .frame(frame_no_margins)
-            .show_inside(ui, |ui| self.custom_painting(ui));
-        if self.in_scroll {
-            ctx.request_repaint();
-        } else {
-            ctx.request_repaint_after(Duration::from_millis(150));
         }
     }
 

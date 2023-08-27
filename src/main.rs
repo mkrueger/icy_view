@@ -2,18 +2,21 @@ use std::path::PathBuf;
 
 mod ui;
 use clap::Parser;
-use eframe::epaint::Vec2;
+use eframe::egui;
 #[derive(Parser, Debug)]
 pub struct Cli {
     path: Option<PathBuf>,
 }
 
-#[allow(clippy::field_reassign_with_default)]
 fn main() {
     let args = Cli::parse();
 
-    let mut options = eframe::NativeOptions::default();
-    options.initial_window_size = Some(Vec2::new(1416., 807.));
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(1284. + 8., 839.)),
+        multisampling: 0,
+        renderer: eframe::Renderer::Glow,
+        ..Default::default()
+    };
     eframe::run_native(
         &format!("iCY VIEW {}", env!("CARGO_PKG_VERSION")),
         options,
