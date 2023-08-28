@@ -1,6 +1,6 @@
 [package]
 name = "icy_view"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "A fast ansi art viewer."
 authors = ["Mike Krüger <mkrueger@posteo.de>"]
@@ -22,11 +22,11 @@ log = "0.4"
 env_logger = "0.10.0"
 
 image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
-icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
-#icy_engine = { path ="../icy_engine" }
+#icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
+icy_engine = { path ="../icy_engine" }
 
-icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
-#icy_engine_egui = { path ="../icy_engine_egui" }
+#icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
+icy_engine_egui = { path ="../icy_engine_egui" }
 
 [build-dependencies]
 winres = "0.1"

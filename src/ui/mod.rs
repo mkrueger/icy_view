@@ -90,8 +90,8 @@ impl MainWindow {
         }
 
         let w = (ui.available_width() / 8.0).floor();
-        let scale = (w / 80.0).min(2.0);
-        let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).floor();
+        let scale = (w / self.buffer_view.lock().buf.get_buffer_width() as f32).min(2.0);
+        let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).round();
         let opt = icy_engine_egui::TerminalOptions {
             focus_lock: true,
             stick_to_bottom: false,
