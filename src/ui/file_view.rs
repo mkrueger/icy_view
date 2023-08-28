@@ -1,6 +1,6 @@
 use directories::UserDirs;
 use eframe::egui;
-use egui::{Layout, ScrollArea, TextEdit, Ui};
+use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, TableBuilder};
 use icy_engine::SauceData;
 
@@ -44,6 +44,8 @@ pub struct FileView {
     scroll_pos: Option<usize>,
     /// Files in directory.
     pub files: Vec<FileEntry>,
+
+    pub filter: String,
 }
 
 impl FileView {
@@ -71,6 +73,7 @@ impl FileView {
             selected_file: None,
             scroll_pos: None,
             files: Vec::new(),
+            filter: String::new(),
         }
     }
 
@@ -84,22 +87,28 @@ impl FileView {
                     self.refresh();
                 }
             });
-            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                let response = ui.button("⟲").on_hover_text("Refresh");
-                if response.clicked() {
-                    self.refresh();
+           
+            match self.path.to_str() {
+                Some(path) => {
+                    let mut path_edit = path.to_string();
+                    let _response =
+                        ui.add_sized([250.0, 20.0], TextEdit::singleline(&mut path_edit));
                 }
-                match self.path.to_str() {
-                    Some(path) => {
-                        let mut path_edit = path.to_string();
-                        let _response =
-                            ui.add_sized(ui.available_size(), TextEdit::singleline(&mut path_edit));
-                    }
-                    None => {
-                        ui.colored_label(ui.style().visuals.error_fg_color, "Invalid path");
-                    }
+                None => {
+                    ui.colored_label(ui.style().visuals.error_fg_color, "Invalid path");
                 }
-            });
+            }
+            let response = ui.button("⟲").on_hover_text("Refresh");
+            if response.clicked() {
+                self.refresh();
+            }
+            ui.separator();
+            ui.add_sized([250.0, 20.0], TextEdit::singleline(&mut self.filter).hint_text("Filter entries"));
+            let response = ui.button("🗙").on_hover_text("Reset filter");
+            if response.clicked() {
+                self.filter.clear();
+            }
+
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
@@ -144,7 +153,27 @@ impl FileView {
                     })
                     .body(|mut body| {
                         let first = 0;
-                        let f = self.files.clone();
+                        let filter = self.filter.to_lowercase();
+                        let f = self
+                            .files
+                            .iter()
+                            .filter(|p| {
+                                if filter.is_empty() {
+                                    return true;
+                                }
+                                if let Some(sauce) = &p.sauce {
+                                    if sauce.title.to_string().to_lowercase().contains(&filter)
+                                        || sauce.group.to_string().to_lowercase().contains(&filter)
+                                        || sauce.author.to_string().to_lowercase().contains(&filter)
+                                    {
+                                        return true;
+                                    }
+                                }
+                                p.path.to_string_lossy().to_lowercase().contains(&filter)
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>();
+
                         for (i, entry) in f.iter().enumerate() {
                             body.row(row_height, |mut row| {
                                 row.col(|ui| {
@@ -231,6 +260,9 @@ impl FileView {
     }
 
     fn open(&mut self, idx: usize) {
+        if idx >= self.files.len() {
+            return;
+        }
         let entry = &self.files[idx];
         if entry.path.is_dir() {
             self.set_path(entry.path.clone())

@@ -93,7 +93,7 @@ impl MainWindow {
         let scale = (w / self.buffer_view.lock().buf.get_buffer_width() as f32).min(2.0);
         let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).round();
         let opt = icy_engine_egui::TerminalOptions {
-            focus_lock: true,
+            focus_lock: false,
             stick_to_bottom: false,
             scale: Some(Vec2::new(scale, scale)),
             font_extension: icy_engine_egui::FontExtension::Off,
