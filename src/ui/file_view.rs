@@ -87,7 +87,7 @@ impl FileView {
                     self.refresh();
                 }
             });
-           
+
             match self.path.to_str() {
                 Some(path) => {
                     let mut path_edit = path.to_string();
@@ -104,12 +104,14 @@ impl FileView {
                 self.refresh();
             }
             ui.separator();
-            ui.add_sized([250.0, 20.0], TextEdit::singleline(&mut self.filter).hint_text("Filter entries"));
+            ui.add_sized(
+                [250.0, 20.0],
+                TextEdit::singleline(&mut self.filter).hint_text("Filter entries"),
+            );
             let response = ui.button("🗙").on_hover_text("Reset filter");
             if response.clicked() {
                 self.filter.clear();
             }
-
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
