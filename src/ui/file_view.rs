@@ -91,8 +91,9 @@ impl FileView {
             match self.path.to_str() {
                 Some(path) => {
                     let mut path_edit = path.to_string();
-                    let _response =
+                    ui.add_enabled_ui(false, |ui| {
                         ui.add_sized([250.0, 20.0], TextEdit::singleline(&mut path_edit));
+                    });
                 }
                 None => {
                     ui.colored_label(ui.style().visuals.error_fg_color, "Invalid path");
