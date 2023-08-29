@@ -35,8 +35,8 @@ const EXT_WHITE_LIST: [&str; 10] = [
     "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq",
 ];
 
-const EXT_BLACK_LIST: [&str; 6] = [
-    "zip", "rar", "gz", "tar", "7z", "pdf"
+const EXT_BLACK_LIST: [&str; 7] = [
+    "zip", "rar", "gz", "tar", "7z", "pdf", "exe"
 ];
      
 impl App for MainWindow {
