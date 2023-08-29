@@ -21,6 +21,7 @@ pub struct FileEntry {
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
     pub sauce: Option<SauceData>,
+    
 }
 
 impl FileEntry {
@@ -41,11 +42,12 @@ pub struct FileView {
     path: PathBuf,
     /// Selected file path
     pub selected_file: Option<usize>,
-    scroll_pos: Option<usize>,
+    pub scroll_pos: Option<usize>,
     /// Files in directory.
     pub files: Vec<FileEntry>,
 
     pub filter: String,
+    pre_select_file: Option<String>
 }
 
 impl FileView {
@@ -58,6 +60,14 @@ impl FileView {
             env::current_dir().unwrap_or_default()
         };
 
+        let mut pre_select_file = None;
+
+
+        if !path.exists()  {
+            pre_select_file = Some(path.file_name().unwrap().to_string_lossy().to_string());
+            path.pop();
+        }
+
         if path.is_file()
             && path
                 .extension()
@@ -66,11 +76,15 @@ impl FileView {
                 .to_ascii_lowercase()
                 != "zip"
         {
+            pre_select_file = Some(path.file_name().unwrap().to_string_lossy().to_string());
             path.pop();
         }
+
+        println!("Path: {:?} + {:?}", path, pre_select_file);
         Self {
             path,
             selected_file: None,
+            pre_select_file,
             scroll_pos: None,
             files: Vec::new(),
             filter: String::new(),
@@ -268,15 +282,16 @@ impl FileView {
         }
         let entry = &self.files[idx];
         if entry.path.is_dir() {
-            self.set_path(entry.path.clone())
+            self.set_path(entry.path.clone());
         }
     }
-    pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+    
+    pub fn set_path(&mut self, path: impl Into<PathBuf>) -> Option<Command> {
         self.path = path.into();
-        self.refresh();
+        self.refresh()
     }
 
-    pub fn refresh(&mut self) {
+    pub fn refresh(&mut self) -> Option<Command> {
         self.files.clear();
 
         if self.path.is_file() {
@@ -315,45 +330,52 @@ impl FileView {
                     log::error!("Failed to open zip file: {}", err);
                 }
             }
-            return;
-        }
-
-        let folders = read_folder(&self.path);
-        match folders {
-            Ok(folders) => {
-                self.files = folders
-                    .iter()
-                    .map(|f| FileEntry {
-                        path: f.clone(),
-                        read_sauce: false,
-                        sauce: None,
-                        file_data: None,
-                    })
-                    .collect();
+        } else {
+            let folders = read_folder(&self.path);
+            match folders {
+                Ok(folders) => {
+                    self.files = folders
+                        .iter()
+                        .map(|f| FileEntry {
+                            path: f.clone(),
+                            read_sauce: false,
+                            sauce: None,
+                            file_data: None,
+                        })
+                        .collect();
+                }
+                Err(err) => {
+                    log::error!("Failed to read folder: {}", err);
+                }
             }
-            Err(err) => {
-                log::error!("Failed to read folder: {}", err);
-            }
-        }
 
-        for entry in &mut self.files {
-            if !entry.read_sauce {
-                entry.read_sauce = true;
+            for entry in &mut self.files {
+                if !entry.read_sauce {
+                    entry.read_sauce = true;
 
-                let file = File::open(&entry.path);
+                    let file = File::open(&entry.path);
 
-                if let Ok(file) = file {
-                    let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
-                    if let Ok(map) = mmap {
-                        if let Ok(data) = SauceData::extract(&map) {
-                            entry.sauce = Some(data);
+                    if let Ok(file) = file {
+                        let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
+                        if let Ok(map) = mmap {
+                            if let Ok(data) = SauceData::extract(&map) {
+                                entry.sauce = Some(data);
+                            }
                         }
                     }
                 }
             }
         }
+        self.selected_file = None;
 
-        // self.select(None);
+        if let Some(file) = &self.pre_select_file {
+            for (i, entry) in self.files.iter().enumerate() {
+                if entry.path.file_name().unwrap().to_string_lossy() == *file {
+                    return Command::Select(i).into();
+                }
+            }
+        }
+        None
     }
 }
 

@@ -35,15 +35,7 @@ impl App for MainWindow {
             .resizable(true)
             .show(ctx, |ui| {
                 let command = self.file_view.show_ui(ui);
-                if let Some(command) = command {
-                    match command {
-                        Command::Select(file) => {
-                            self.file_view.selected_file = Some(file);
-                            self.open_selected(file);
-                            ctx.request_repaint();
-                        }
-                    };
-                }
+                self.handle_command(ctx, command);
             });
 
         let frame_no_margins = egui::containers::Frame::none()
@@ -62,6 +54,10 @@ impl App for MainWindow {
         if ctx.input(|i| i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt) {  
             self.full_screen_mode = !self.full_screen_mode;
             frame.set_fullscreen(self.full_screen_mode);
+        }
+
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape) || i.key_pressed(egui::Key::Q) && i.modifiers.alt) {  
+            frame.close();
         }
     }
 }
@@ -153,6 +149,19 @@ impl MainWindow {
                 self.in_scroll = true;
                 self.buffer_view.lock().set_buffer(buf);
             }
+        }
+    }
+
+    pub fn handle_command(&mut self, ctx: &Context, command: Option<Command>) {
+        if let Some(command) = command {
+            match command {
+                Command::Select(file) => {
+                    self.file_view.selected_file = Some(file);
+                    self.open_selected(file);
+                    self.file_view.scroll_pos = Some(file);
+                    ctx.request_repaint();
+                }
+            };
         }
     }
 }

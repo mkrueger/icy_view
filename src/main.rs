@@ -24,7 +24,8 @@ fn main() {
         options,
         Box::new(|cc| {
             let mut fd = ui::MainWindow::new(cc, args);
-            fd.file_view.refresh();
+            let cmd = fd.file_view.refresh();
+            fd.handle_command(&cc.egui_ctx, cmd);
             Box::new(fd)
         }),
     )
