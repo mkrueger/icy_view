@@ -43,7 +43,7 @@ impl App for MainWindow {
             .min_height(300.)
             .resizable(true)
             .show(ctx, |ui| {
-                let command = self.file_view.show_ui(ui);
+                let command = self.file_view.show_ui(ctx, ui);
                 self.handle_command(command);
             });
 

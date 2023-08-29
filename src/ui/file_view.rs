@@ -1,5 +1,5 @@
 use directories::UserDirs;
-use eframe::egui;
+use eframe::egui::{self, RichText, Context};
 use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, RetainedImage, TableBuilder};
 use icy_engine::SauceData;
@@ -131,7 +131,7 @@ impl FileView {
         }
     }
 
-    pub(crate) fn show_ui(&mut self, ui: &mut Ui) -> Option<Command> {
+    pub(crate) fn show_ui(&mut self, ctx: &Context, ui: &mut Ui) -> Option<Command> {
         let mut command: Option<Command> = None;
         ui.add_space(4.0);
         ui.horizontal(|ui| {
@@ -227,10 +227,16 @@ impl FileView {
                         });
 
                         for (i, entry) in f.enumerate() {
-                            body.row(row_height, |mut row| {
-                                row.col(|ui| {
-                                    let is_selected = Some(first + i) == self.selected_file;
+                            let is_selected = Some(first + i) == self.selected_file;
+                            let text_color = if is_selected {
+                                ctx.style().visuals.strong_text_color()
+                            } else {
+                                ctx.style().visuals.text_color()
+                            };
 
+                            body.row(row_height, |mut row| {
+
+                                row.col(|ui| {
                                     if is_selected
                                         || ui.is_rect_visible(ui.available_rect_before_wrap())
                                     {
@@ -262,7 +268,7 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(sauce.title.to_string());
+                                            ui.label(RichText::new(sauce.title.to_string()).color(text_color));
                                         } else {
                                             ui.label("");
                                         }
@@ -271,7 +277,7 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(sauce.author.to_string());
+                                            ui.label(RichText::new(sauce.author.to_string()).color(text_color));
                                         } else {
                                             ui.label("");
                                         }
@@ -280,7 +286,7 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(sauce.group.to_string());
+                                            ui.label(RichText::new(sauce.group.to_string()).color(text_color));
                                         } else {
                                             ui.label("");
                                         }
@@ -291,12 +297,12 @@ impl FileView {
                                         if entry.path.is_dir() {
                                             ui.label("");
                                         } else if let Some(sauce) = &entry.sauce {
-                                            ui.label(format!(
+                                            ui.label(RichText::new(format!(
                                                 "{}x{} {}",
                                                 sauce.buffer_size.width,
                                                 sauce.buffer_size.height,
                                                 if sauce.use_ice { "(ICE)" } else { "" }
-                                            ));
+                                            )).color(text_color));
                                         } else {
                                             ui.label("");
                                         }
