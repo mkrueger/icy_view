@@ -229,54 +229,66 @@ impl FileView {
                         for (i, entry) in f.enumerate() {
                             body.row(row_height, |mut row| {
                                 row.col(|ui| {
-                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                        entry.load_sauce();
-                                    }
-                                    let label = match entry.path.is_dir() {
-                                        true => "🗀 ",
-                                        false => "🗋 ",
-                                    }
-                                    .to_string()
-                                        + get_file_name(&entry.path);
                                     let is_selected = Some(first + i) == self.selected_file;
-                                    let selectable_label = ui.selectable_label(is_selected, label);
-                                    if selectable_label.clicked() {
-                                        command = Some(Command::Select(first + i));
-                                    }
-                                    if let Some(sel) = self.scroll_pos {
-                                        if sel == i {
-                                            ui.scroll_to_rect(selectable_label.rect, None);
-                                            self.scroll_pos = None;
-                                        }
-                                    }
 
-                                    if selectable_label.double_clicked() {
-                                        command = Some(Command::Open(first + i));
-                                    }
+                                    if is_selected || ui.is_rect_visible(ui.available_rect_before_wrap()) {
+                                        entry.load_sauce();
+                                        let label = match entry.path.is_dir() {
+                                            true => "🗀 ",
+                                            false => "🗋 ",
+                                        }
+                                        .to_string()
+                                            + get_file_name(&entry.path);
+                                        let selectable_label = ui.selectable_label(is_selected, label);
+                                        if selectable_label.clicked() {
+                                            command = Some(Command::Select(first + i));
+                                        }
+                                        if let Some(sel) = self.scroll_pos {
+                                            if sel == i {
+                                                ui.scroll_to_rect(selectable_label.rect, None);
+                                                self.scroll_pos = None;
+                                            }
+                                        }
+
+                                        if selectable_label.double_clicked() {
+                                            command = Some(Command::Open(first + i));
+                                        }
+                                    } 
                                 });
 
                                 row.col(|ui| {
+                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
+
                                     if let Some(sauce) = &entry.sauce {
                                         ui.label(sauce.title.to_string());
                                     } else {
                                         ui.label("");
                                     }
+                                }
                                 });
                                 row.col(|ui| {
+                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
+
                                     if let Some(sauce) = &entry.sauce {
                                         ui.label(sauce.author.to_string());
                                     } else {
                                         ui.label("");
                                     }
+                                }
                                 });
                                 row.col(|ui| {
+                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
+
                                     if let Some(sauce) = &entry.sauce {
                                         ui.label(sauce.group.to_string());
                                     } else {
                                         ui.label("");
                                     }
+                                }
                                 });
                                 row.col(|ui| {
+                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
+
                                     if entry.path.is_dir() {
                                         ui.label("");
                                     } else if let Some(sauce) = &entry.sauce {
@@ -289,6 +301,7 @@ impl FileView {
                                     } else {
                                         ui.label("");
                                     }
+                                }
                                 });
                             });
                         }
@@ -310,7 +323,7 @@ impl FileView {
                 command = Some(Command::Select(s.saturating_add(1)));
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::Enter)) && s > 0 {
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 command = Some(Command::Open(s));
             }
 

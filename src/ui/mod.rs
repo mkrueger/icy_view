@@ -8,7 +8,7 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{fs::File, io, path::Path, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{ io,  sync::Arc, thread::JoinHandle, time::Duration};
 
 use crate::Cli;
 
@@ -55,6 +55,7 @@ impl App for MainWindow {
             .frame(frame_no_margins)
             .show(ctx, |ui| self.custom_painting(ui));
         if self.in_scroll {
+         //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
         } else {
             ctx.request_repaint_after(Duration::from_millis(150));
@@ -237,7 +238,7 @@ impl MainWindow {
         self.file_view.selected_file = None;
     }
 
-    pub fn handle_command(&mut self, ctx: &Context, command: Option<Command>) {
+    pub fn handle_command(&mut self, _ctx: &Context, command: Option<Command>) {
         if let Some(command) = command {
             match command {
                 Command::Select(file) => {
@@ -246,8 +247,6 @@ impl MainWindow {
                         self.file_view.selected_file = Some(file);
                         self.file_view.scroll_pos = Some(file);
                         self.view_selected(file);
-
-                        ctx.request_repaint();
                     }
                 }
                 Command::Refresh => {
@@ -259,8 +258,6 @@ impl MainWindow {
                         self.file_view.selected_file = Some(0);
                         self.file_view.scroll_pos = Some(0);
                         self.view_selected(file);
-
-                        ctx.request_repaint();
                     }
                 }
                 Command::ParentFolder => {
