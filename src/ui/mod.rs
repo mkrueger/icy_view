@@ -8,7 +8,7 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{ io,  sync::Arc, thread::JoinHandle, time::Duration};
+use std::{io, sync::Arc, thread::JoinHandle, time::Duration};
 
 use crate::Cli;
 
@@ -55,7 +55,7 @@ impl App for MainWindow {
             .frame(frame_no_margins)
             .show(ctx, |ui| self.custom_painting(ui));
         if self.in_scroll {
-         //   ctx.request_repaint_after(Duration::from_millis(10));
+            //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
         } else {
             ctx.request_repaint_after(Duration::from_millis(150));

@@ -231,7 +231,9 @@ impl FileView {
                                 row.col(|ui| {
                                     let is_selected = Some(first + i) == self.selected_file;
 
-                                    if is_selected || ui.is_rect_visible(ui.available_rect_before_wrap()) {
+                                    if is_selected
+                                        || ui.is_rect_visible(ui.available_rect_before_wrap())
+                                    {
                                         entry.load_sauce();
                                         let label = match entry.path.is_dir() {
                                             true => "🗀 ",
@@ -239,7 +241,8 @@ impl FileView {
                                         }
                                         .to_string()
                                             + get_file_name(&entry.path);
-                                        let selectable_label = ui.selectable_label(is_selected, label);
+                                        let selectable_label =
+                                            ui.selectable_label(is_selected, label);
                                         if selectable_label.clicked() {
                                             command = Some(Command::Select(first + i));
                                         }
@@ -253,55 +256,51 @@ impl FileView {
                                         if selectable_label.double_clicked() {
                                             command = Some(Command::Open(first + i));
                                         }
-                                    } 
+                                    }
                                 });
 
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-
-                                    if let Some(sauce) = &entry.sauce {
-                                        ui.label(sauce.title.to_string());
-                                    } else {
-                                        ui.label("");
+                                        if let Some(sauce) = &entry.sauce {
+                                            ui.label(sauce.title.to_string());
+                                        } else {
+                                            ui.label("");
+                                        }
                                     }
-                                }
                                 });
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-
-                                    if let Some(sauce) = &entry.sauce {
-                                        ui.label(sauce.author.to_string());
-                                    } else {
-                                        ui.label("");
+                                        if let Some(sauce) = &entry.sauce {
+                                            ui.label(sauce.author.to_string());
+                                        } else {
+                                            ui.label("");
+                                        }
                                     }
-                                }
                                 });
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-
-                                    if let Some(sauce) = &entry.sauce {
-                                        ui.label(sauce.group.to_string());
-                                    } else {
-                                        ui.label("");
+                                        if let Some(sauce) = &entry.sauce {
+                                            ui.label(sauce.group.to_string());
+                                        } else {
+                                            ui.label("");
+                                        }
                                     }
-                                }
                                 });
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-
-                                    if entry.path.is_dir() {
-                                        ui.label("");
-                                    } else if let Some(sauce) = &entry.sauce {
-                                        ui.label(format!(
-                                            "{}x{} {}",
-                                            sauce.buffer_size.width,
-                                            sauce.buffer_size.height,
-                                            if sauce.use_ice { "(ICE)" } else { "" }
-                                        ));
-                                    } else {
-                                        ui.label("");
+                                        if entry.path.is_dir() {
+                                            ui.label("");
+                                        } else if let Some(sauce) = &entry.sauce {
+                                            ui.label(format!(
+                                                "{}x{} {}",
+                                                sauce.buffer_size.width,
+                                                sauce.buffer_size.height,
+                                                if sauce.use_ice { "(ICE)" } else { "" }
+                                            ));
+                                        } else {
+                                            ui.label("");
+                                        }
                                     }
-                                }
                                 });
                             });
                         }
