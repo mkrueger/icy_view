@@ -22,11 +22,13 @@ pub struct MainWindow {
     pub start_time: std::time::Instant,
     pub in_scroll: bool,
 
+    full_screen_mode: bool,
+
     image: Option<RetainedImage>,
 }
 
 impl App for MainWindow {
-    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         egui::TopBottomPanel::bottom("bottom_panel")
             //   egui::SidePanel::left("left_panel")
             .min_height(300.)
@@ -56,6 +58,11 @@ impl App for MainWindow {
         } else {
             ctx.request_repaint_after(Duration::from_millis(150));
         }
+
+        if ctx.input(|i| i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt) {  
+            self.full_screen_mode = !self.full_screen_mode;
+            frame.set_fullscreen(self.full_screen_mode);
+        }
     }
 }
 
@@ -78,6 +85,7 @@ impl MainWindow {
             start_time: std::time::Instant::now(),
             in_scroll: false,
             image: None,
+            full_screen_mode: false,
         }
     }
 
