@@ -8,11 +8,11 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{io, sync::Arc, thread::JoinHandle, time::Duration, path::Path, fs::File};
 
 use crate::Cli;
 
-use self::file_view::{Command, FileView};
+use self::file_view::{Command, FileView, FileEntry};
 
 mod file_view;
 
@@ -30,6 +30,15 @@ pub struct MainWindow {
     retained_image: Option<RetainedImage>,
 }
 
+
+const EXT_WHITE_LIST: [&str; 10] = [
+    "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq",
+];
+
+const EXT_BLACK_LIST: [&str; 6] = [
+    "zip", "rar", "gz", "tar", "7z", "pdf"
+];
+     
 impl App for MainWindow {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         egui::TopBottomPanel::bottom("bottom_panel")
@@ -181,13 +190,13 @@ impl MainWindow {
         }
 
         open_path
-    }
-
+    } 
     fn view_selected(&mut self, file: usize) {
         let entry = &self.file_view.files[file];
         if entry.is_file() {
             if let Some(ext) = entry.path.extension() {
-                let ext = ext.to_ascii_lowercase();
+                let ext2 = ext.to_ascii_lowercase();
+                let ext = ext2.to_str().unwrap();
                 if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
                     self.image_loading_thread = Some(entry.read_image(|path, data| {
                         egui_extras::RetainedImage::from_image_bytes(path.to_string_lossy(), data)
@@ -200,7 +209,7 @@ impl MainWindow {
                     }));
                     return;
                 }
-                if ext != "zip" && ext != "rar" && ext != "gz" && ext != "tar" && ext != "7z" {
+                if EXT_WHITE_LIST.contains(&ext) || !EXT_BLACK_LIST.contains(&ext) && !is_binary(entry) {
                     if let Ok(Ok(buf)) =
                         entry.get_data(|path, data| Buffer::from_bytes(path, true, data))
                     {
@@ -259,4 +268,17 @@ impl MainWindow {
             };
         }
     }
+}
+
+fn is_binary(file_entry: &FileEntry) -> bool {
+
+    file_entry.get_data(|_, data| {
+        for i in data.iter().take(500) {
+            if i == &0 || i == &255 {
+                return true;
+            }
+        }
+        false
+    }).unwrap()
+
 }
