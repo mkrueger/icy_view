@@ -1,18 +1,22 @@
 use directories::UserDirs;
 use eframe::egui;
 use egui::{ScrollArea, TextEdit, Ui};
-use egui_extras::{Column, TableBuilder};
+use egui_extras::{Column, RetainedImage, TableBuilder};
 use icy_engine::SauceData;
 
 use std::{
     env,
     fs::{self, File},
-    io::{Error, Read},
+    io::{self, Error, Read},
     path::{Path, PathBuf},
+    thread::{self, JoinHandle},
 };
 
 pub enum Command {
     Select(usize),
+    Open(usize), 
+    Refresh,   
+    ParentFolder 
 }
 
 #[derive(Clone)]
@@ -21,15 +25,42 @@ pub struct FileEntry {
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
     pub sauce: Option<SauceData>,
-    
 }
 
 impl FileEntry {
-    pub fn get_data(&self) -> Vec<u8> {
+    pub fn get_data<T>(&self, func: fn(&PathBuf, &[u8]) -> T) -> io::Result<T> {
         if let Some(data) = &self.file_data {
-            return data.clone();
+            return Ok(func(&self.path, data));
         }
-        fs::read(&self.path).expect("Folder icon file donest exist")
+
+        let file = File::open(&self.path)?;
+        let mmap = unsafe { memmap::MmapOptions::new().map(&file)? };
+        Ok(func(&self.path, &mmap))
+    }
+
+    pub fn read_image(
+        &self,
+        func: fn(&PathBuf, &[u8]) -> Result<RetainedImage, String>,
+    ) -> JoinHandle<io::Result<RetainedImage>> {
+        let path = self.path.clone();
+        if let Some(data) = &self.file_data {
+            let data = data.clone();
+            thread::spawn(move || {
+                if let Ok(ri) = func(&path, &data) {
+                    return Ok(ri);
+                }
+                Err(io::Error::new(io::ErrorKind::Other, "can't read image"))
+            })
+        } else {
+            thread::spawn(move || {
+                let file = File::open(&path)?;
+                let mmap = unsafe { memmap::MmapOptions::new().map(&file)? };
+                if let Ok(ri) = func(&path, &mmap) {
+                    return Ok(ri);
+                }
+                Err(io::Error::new(io::ErrorKind::Other, "can't read image"))
+            })
+        }
     }
 
     pub fn is_file(&self) -> bool {
@@ -47,7 +78,7 @@ pub struct FileView {
     pub files: Vec<FileEntry>,
 
     pub filter: String,
-    pre_select_file: Option<String>
+    pre_select_file: Option<String>,
 }
 
 impl FileView {
@@ -62,8 +93,7 @@ impl FileView {
 
         let mut pre_select_file = None;
 
-
-        if !path.exists()  {
+        if !path.exists() {
             pre_select_file = Some(path.file_name().unwrap().to_string_lossy().to_string());
             path.pop();
         }
@@ -80,7 +110,6 @@ impl FileView {
             path.pop();
         }
 
-        println!("Path: {:?} + {:?}", path, pre_select_file);
         Self {
             path,
             selected_file: None,
@@ -97,8 +126,8 @@ impl FileView {
         ui.horizontal(|ui| {
             ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
                 let response = ui.button("⬆").on_hover_text("Parent Folder");
-                if response.clicked() && self.path.pop() {
-                    self.refresh();
+                if response.clicked() {
+                    command = Some(Command::ParentFolder);
                 }
             });
 
@@ -115,7 +144,7 @@ impl FileView {
             }
             let response = ui.button("⟲").on_hover_text("Refresh");
             if response.clicked() {
-                self.refresh();
+                command = Some(Command::Refresh);
             }
             ui.separator();
             ui.add_sized(
@@ -137,7 +166,7 @@ impl FileView {
         // let row_height = ui.text_style_height(&egui::TextStyle::Body);
         let row_height = ui.text_style_height(&egui::TextStyle::Body);
 
-        area.show(ui, |ui| {
+        let area_res = area.show(ui, |ui| {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
                 let table = TableBuilder::new(ui)
                     .striped(true)
@@ -202,7 +231,7 @@ impl FileView {
                                         + get_file_name(&entry.path);
                                     let is_selected = Some(first + i) == self.selected_file;
                                     let selectable_label = ui.selectable_label(is_selected, label);
-                                    if selectable_label.clicked() && entry.is_file() {
+                                    if selectable_label.clicked() {
                                         command = Some(Command::Select(first + i));
                                     }
                                     if let Some(sel) = self.scroll_pos {
@@ -212,11 +241,10 @@ impl FileView {
                                         }
                                     }
 
-                                    if (selectable_label.double_clicked()
-                                        || ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                                        && entry.path.is_dir()
+                                    if selectable_label.double_clicked()
+                                        || ui.input(|i| i.key_pressed(egui::Key::Enter))
                                     {
-                                        self.open(first + i);
+                                        command = Some(Command::Open(first + i));
                                     }
                                 });
 
@@ -262,30 +290,61 @@ impl FileView {
             .response
         });
 
+
+
+        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
+            return Some(Command::ParentFolder);
+        }
+
         if let Some(s) = self.selected_file {
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
-                command = Some(Command::Select(s - 1));
-                self.scroll_pos = Some(s - 1);
+                command = Some(Command::Select(s.saturating_sub(1)));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
-                command = Some(Command::Select(s + 1));
-                self.scroll_pos = Some(s + 1);
+                command = Some(Command::Select(s.saturating_add(1)));
             }
+
+            if !self.files.is_empty() {
+                if ui.input(|i| i.key_pressed(egui::Key::Home)) {
+                    command = Some(Command::Select(0));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::End)) {
+                    command = Some(Command::Select(self.files.len().saturating_sub(1)));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
+                    let page_size = (area_res.inner_rect.height() / row_height) as usize;
+                    command = Some(Command::Select(s.saturating_sub(page_size)));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
+                    let page_size = (area_res.inner_rect.height() / row_height) as usize;
+                    command = Some(Command::Select((s.saturating_add(page_size)).min(self.files.len() - 1)));
+                }
+            }
+        } else if !self.files.is_empty() {
+            if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) || i.key_pressed(egui::Key::ArrowDown) || i.key_pressed(egui::Key::PageUp) || i.key_pressed(egui::Key::PageDown)) {
+                command = Some(Command::Select(0));
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::Home)) {
+                command = Some(Command::Select(0));
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::End)) {
+                command = Some(Command::Select(self.files.len().saturating_sub(1)));
+            }
+
         }
         command
     }
 
-    fn open(&mut self, idx: usize) {
-        if idx >= self.files.len() {
-            return;
-        }
-        let entry = &self.files[idx];
-        if entry.path.is_dir() {
-            self.set_path(entry.path.clone());
-        }
+    pub fn get_path(&self) -> PathBuf {
+        self.path.clone()
     }
-    
+
     pub fn set_path(&mut self, path: impl Into<PathBuf>) -> Option<Command> {
         self.path = path.into();
         self.refresh()
@@ -353,7 +412,7 @@ impl FileView {
                 if !entry.read_sauce {
                     entry.read_sauce = true;
 
-                    let file = File::open(&entry.path);
+                    let file: Result<File, Error> = File::open(&entry.path);
 
                     if let Ok(file) = file {
                         let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
