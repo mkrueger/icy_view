@@ -31,8 +31,9 @@ pub struct MainWindow {
 }
 
 
-const EXT_WHITE_LIST: [&str; 10] = [
+const EXT_WHITE_LIST: [&str; 13] = [
     "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq",
+    "asc", "diz", "nfo"
 ];
 
 const EXT_BLACK_LIST: [&str; 7] = [
