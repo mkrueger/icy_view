@@ -14,9 +14,9 @@ use std::{
 
 pub enum Command {
     Select(usize),
-    Open(usize), 
-    Refresh,   
-    ParentFolder 
+    Open(usize),
+    Refresh,
+    ParentFolder,
 }
 
 #[derive(Clone)]
@@ -65,6 +65,17 @@ impl FileEntry {
 
     pub fn is_file(&self) -> bool {
         self.file_data.is_some() || self.path.is_file()
+    }
+
+    fn load_sauce(&mut self) {
+        if self.read_sauce {
+            return;
+        }
+        self.read_sauce = true;
+
+        if let Ok(Ok(data)) = self.get_data(|_, data| SauceData::extract(data)) {
+            self.sauce = Some(data);
+        }
     }
 }
 
@@ -200,29 +211,27 @@ impl FileView {
                     .body(|mut body| {
                         let first = 0;
                         let filter = self.filter.to_lowercase();
-                        let f = self
-                            .files
-                            .iter()
-                            .filter(|p| {
-                                if filter.is_empty() {
+                        let f = self.files.iter_mut().filter(|p| {
+                            if filter.is_empty() {
+                                return true;
+                            }
+                            if let Some(sauce) = &p.sauce {
+                                if sauce.title.to_string().to_lowercase().contains(&filter)
+                                    || sauce.group.to_string().to_lowercase().contains(&filter)
+                                    || sauce.author.to_string().to_lowercase().contains(&filter)
+                                {
                                     return true;
                                 }
-                                if let Some(sauce) = &p.sauce {
-                                    if sauce.title.to_string().to_lowercase().contains(&filter)
-                                        || sauce.group.to_string().to_lowercase().contains(&filter)
-                                        || sauce.author.to_string().to_lowercase().contains(&filter)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                p.path.to_string_lossy().to_lowercase().contains(&filter)
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>();
+                            }
+                            p.path.to_string_lossy().to_lowercase().contains(&filter)
+                        });
 
-                        for (i, entry) in f.iter().enumerate() {
+                        for (i, entry) in f.enumerate() {
                             body.row(row_height, |mut row| {
                                 row.col(|ui| {
+                                    if ui.is_rect_visible(ui.available_rect_before_wrap()) {
+                                        entry.load_sauce();
+                                    }
                                     let label = match entry.path.is_dir() {
                                         true => "🗀 ",
                                         false => "🗋 ",
@@ -241,9 +250,7 @@ impl FileView {
                                         }
                                     }
 
-                                    if selectable_label.double_clicked()
-                                        || ui.input(|i| i.key_pressed(egui::Key::Enter))
-                                    {
+                                    if selectable_label.double_clicked() {
                                         command = Some(Command::Open(first + i));
                                     }
                                 });
@@ -290,8 +297,6 @@ impl FileView {
             .response
         });
 
-
-
         if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
             return Some(Command::ParentFolder);
         }
@@ -303,6 +308,10 @@ impl FileView {
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
                 command = Some(Command::Select(s.saturating_add(1)));
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) && s > 0 {
+                command = Some(Command::Open(s));
             }
 
             if !self.files.is_empty() {
@@ -321,11 +330,18 @@ impl FileView {
 
                 if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
                     let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Command::Select((s.saturating_add(page_size)).min(self.files.len() - 1)));
+                    command = Some(Command::Select(
+                        (s.saturating_add(page_size)).min(self.files.len() - 1),
+                    ));
                 }
             }
         } else if !self.files.is_empty() {
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) || i.key_pressed(egui::Key::ArrowDown) || i.key_pressed(egui::Key::PageUp) || i.key_pressed(egui::Key::PageDown)) {
+            if ui.input(|i| {
+                i.key_pressed(egui::Key::ArrowUp)
+                    || i.key_pressed(egui::Key::ArrowDown)
+                    || i.key_pressed(egui::Key::PageUp)
+                    || i.key_pressed(egui::Key::PageDown)
+            }) {
                 command = Some(Command::Select(0));
             }
 
@@ -336,7 +352,6 @@ impl FileView {
             if ui.input(|i| i.key_pressed(egui::Key::End)) {
                 command = Some(Command::Select(self.files.len().saturating_sub(1)));
             }
-
         }
         command
     }
@@ -362,7 +377,6 @@ impl FileView {
                                 Ok(mut file) => {
                                     let mut data = Vec::new();
                                     file.read_to_end(&mut data).unwrap_or_default();
-                                    let sauce = SauceData::extract(&data).ok();
 
                                     let entry = FileEntry {
                                         path: file
@@ -370,8 +384,8 @@ impl FileView {
                                             .unwrap_or(Path::new("unknown"))
                                             .to_path_buf(),
                                         file_data: Some(data),
-                                        read_sauce: true,
-                                        sauce,
+                                        read_sauce: false,
+                                        sauce: None,
                                     };
                                     self.files.push(entry);
                                 }
@@ -405,23 +419,6 @@ impl FileView {
                 }
                 Err(err) => {
                     log::error!("Failed to read folder: {}", err);
-                }
-            }
-
-            for entry in &mut self.files {
-                if !entry.read_sauce {
-                    entry.read_sauce = true;
-
-                    let file: Result<File, Error> = File::open(&entry.path);
-
-                    if let Ok(file) = file {
-                        let mmap = unsafe { memmap::MmapOptions::new().map(&file) };
-                        if let Ok(map) = mmap {
-                            if let Ok(data) = SauceData::extract(&map) {
-                                entry.sauce = Some(data);
-                            }
-                        }
-                    }
                 }
             }
         }

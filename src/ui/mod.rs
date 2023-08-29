@@ -8,7 +8,7 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, sync::Arc, thread::JoinHandle, time::Duration, ffi::OsStr};
+use std::{io, sync::Arc, thread::JoinHandle, time::Duration};
 
 use crate::Cli;
 
@@ -91,7 +91,7 @@ impl MainWindow {
             retained_image: None,
             full_screen_mode: false,
             error_text: None,
-            loaded_buffer: false
+            loaded_buffer: false,
         }
     }
 
@@ -122,7 +122,7 @@ impl MainWindow {
                         Some("Should never happen :) - open a bug report!".to_string());
                 }
             } else {
-                ui.label("Loading image…");
+                ui.centered_and_justified(|ui| ui.heading("Loading image…"));
             }
             return;
         }
@@ -157,25 +157,32 @@ impl MainWindow {
 
             self.in_scroll &= !calc.set_scroll_position_set_by_user;
         } else {
-            ui.centered_and_justified(|ui|  {            ui.heading("Here you see nothing until you select something.")} );
+            ui.centered_and_justified(|ui| {
+                ui.heading("Here you see nothing until you select something.")
+            });
         }
     }
 
-    fn open_selected(&mut self, file: usize) {
+    fn open_selected(&mut self, file: usize) -> bool {
         let open_path = if self.file_view.files[file].is_file() {
             if let Some(ext) = self.file_view.files[file].path.extension() {
-                ext == "zip" 
-            } else { false }
+                ext == "zip"
+            } else {
+                false
+            }
         } else {
             true
         };
 
         if open_path {
             self.reset_state();
-            self.file_view.set_path(self.file_view.files[file].path.clone());
+            self.file_view
+                .set_path(self.file_view.files[file].path.clone());
         }
+
+        open_path
     }
-   
+
     fn view_selected(&mut self, file: usize) {
         let entry = &self.file_view.files[file];
         if entry.is_file() {
@@ -194,7 +201,9 @@ impl MainWindow {
                     return;
                 }
                 if ext != "zip" && ext != "rar" && ext != "gz" && ext != "tar" && ext != "7z" {
-                    if let Ok(Ok(buf)) = entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
+                    if let Ok(Ok(buf)) =
+                        entry.get_data(|path, data| Buffer::from_bytes(path, true, data))
+                    {
                         self.start_time = std::time::Instant::now();
                         self.in_scroll = true;
                         self.buffer_view.lock().set_buffer(buf);
@@ -231,7 +240,15 @@ impl MainWindow {
                     self.file_view.refresh();
                 }
                 Command::Open(file) => {
-                    self.open_selected(file);
+
+                    if self.open_selected(file) && !self.file_view.files.is_empty() {
+                        self.file_view.selected_file = Some(0);
+                        self.file_view.scroll_pos = Some(0);
+                        self.view_selected(file);
+
+                        ctx.request_repaint();
+                    }
+
                 }
                 Command::ParentFolder => {
                     let mut p = self.file_view.get_path();
