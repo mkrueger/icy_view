@@ -8,11 +8,11 @@ use egui_extras::RetainedImage;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, sync::Arc, thread::JoinHandle, time::Duration, path::Path, fs::File};
+use std::{fs::File, io, path::Path, sync::Arc, thread::JoinHandle, time::Duration};
 
 use crate::Cli;
 
-use self::file_view::{Command, FileView, FileEntry};
+use self::file_view::{Command, FileEntry, FileView};
 
 mod file_view;
 
@@ -30,16 +30,12 @@ pub struct MainWindow {
     retained_image: Option<RetainedImage>,
 }
 
-
 const EXT_WHITE_LIST: [&str; 13] = [
-    "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq",
-    "asc", "diz", "nfo"
+    "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq", "asc", "diz", "nfo",
 ];
 
-const EXT_BLACK_LIST: [&str; 8] = [
-    "zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"
-];
-     
+const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
+
 impl App for MainWindow {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         egui::TopBottomPanel::bottom("bottom_panel")
@@ -174,6 +170,10 @@ impl MainWindow {
     }
 
     fn open_selected(&mut self, file: usize) -> bool {
+        if file >= self.file_view.files.len() {
+            return false;
+        }
+
         let open_path = if self.file_view.files[file].is_file() {
             if let Some(ext) = self.file_view.files[file].path.extension() {
                 ext == "zip"
@@ -191,8 +191,11 @@ impl MainWindow {
         }
 
         open_path
-    } 
+    }
     fn view_selected(&mut self, file: usize) {
+        if file >= self.file_view.files.len() {
+            return;
+        }
         let entry = &self.file_view.files[file];
         if entry.is_file() {
             if let Some(ext) = entry.path.extension() {
@@ -210,7 +213,9 @@ impl MainWindow {
                     }));
                     return;
                 }
-                if EXT_WHITE_LIST.contains(&ext) || !EXT_BLACK_LIST.contains(&ext) && !is_binary(entry) {
+                if EXT_WHITE_LIST.contains(&ext)
+                    || !EXT_BLACK_LIST.contains(&ext) && !is_binary(entry)
+                {
                     if let Ok(Ok(buf)) =
                         entry.get_data(|path, data| Buffer::from_bytes(path, true, data))
                     {
@@ -250,7 +255,6 @@ impl MainWindow {
                     self.file_view.refresh();
                 }
                 Command::Open(file) => {
-
                     if self.open_selected(file) && !self.file_view.files.is_empty() {
                         self.file_view.selected_file = Some(0);
                         self.file_view.scroll_pos = Some(0);
@@ -258,7 +262,6 @@ impl MainWindow {
 
                         ctx.request_repaint();
                     }
-
                 }
                 Command::ParentFolder => {
                     let mut p = self.file_view.get_path();
@@ -272,14 +275,14 @@ impl MainWindow {
 }
 
 fn is_binary(file_entry: &FileEntry) -> bool {
-
-    file_entry.get_data(|_, data| {
-        for i in data.iter().take(500) {
-            if i == &0 || i == &255 {
-                return true;
+    file_entry
+        .get_data(|_, data| {
+            for i in data.iter().take(500) {
+                if i == &0 || i == &255 {
+                    return true;
+                }
             }
-        }
-        false
-    }).unwrap()
-
+            false
+        })
+        .unwrap()
 }
