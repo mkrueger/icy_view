@@ -64,8 +64,8 @@ jobs:
         echo "Building ${{ env.VERSION }} installer…"
         wix extension add WixToolset.UI.wixext WixToolset.Util.wixext
         wix build -arch "x64" -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d "PATH=./cert.pfx" -d "VERSION=${{ env.VERSION }}"  -out "./${{ env.APP_NAME }}-${{ env.VERSION }}-installer.msi" "build/windows/installer.wxs"
-    - name: Delete PFX certificate
-      run: del "./cert.pfx"
+        - name: Delete PFX certificate
+        run: del "./cert.pfx"
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v3
       with:
@@ -73,14 +73,16 @@ jobs:
         path: |
           ${{ env.APP_NAME }}-${{ env.VERSION }}-installer.msi
           file_id.diz
+
+    - name: Copy exe
+      run: cp . .\target\release\*.exe
     - name: 'Upload Artifact 2'
       uses: actions/upload-artifact@v3
       with:
         name: ${{ env.APP_NAME }}_${{ env.VERSION }}_windows_exe
         path: |
-          .\target\release\Icy*.exe
+          .\${{ env.APP_NAME }}.exe
           file_id.diz
-  
   build_mac:
     strategy:
       matrix:
