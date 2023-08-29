@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, Context, ScrollArea},
+    egui::{self, Context, RichText, ScrollArea},
     epaint::{Color32, Vec2},
     App, Frame,
 };
@@ -53,7 +53,7 @@ impl App for MainWindow {
             .fill(Color32::BLACK);
         egui::CentralPanel::default()
             .frame(frame_no_margins)
-            .show(ctx, |ui| self.custom_painting(ui));
+            .show(ctx, |ui| self.paint_main_area(ctx, ui));
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
@@ -102,7 +102,7 @@ impl MainWindow {
         }
     }
 
-    fn custom_painting(&mut self, ui: &mut egui::Ui) {
+    fn paint_main_area(&mut self, ctx: &Context, ui: &mut egui::Ui) {
         if let Some(err) = &self.error_text {
             ui.colored_label(ui.style().visuals.error_fg_color, err);
             return;
@@ -164,9 +164,33 @@ impl MainWindow {
 
             self.in_scroll &= !calc.set_scroll_position_set_by_user;
         } else {
-            ui.centered_and_justified(|ui| {
-                ui.heading("Here you see nothing until you select something.")
-            });
+            match self.file_view.selected_file {
+                Some(file) => {
+                    ui.add_space(ui.available_height() / 3.0);
+                    ui.vertical_centered(|ui| {
+                        ui.heading(format!(
+                            "File {} may not be supported.",
+                            self.file_view.files[self.file_view.selected_file.unwrap()]
+                                .path
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                        ));
+                        ui.add_space(8.0);
+                        if ui
+                            .button(RichText::heading("Load anyways".into()))
+                            .clicked()
+                        {
+                            self.handle_command(ctx, Some(Command::Select(file, true)));
+                        }
+                    });
+                }
+                None => {
+                    ui.centered_and_justified(|ui| {
+                        ui.heading("Here you see nothing until you select something.");
+                    });
+                }
+            }
         }
     }
 
@@ -193,7 +217,7 @@ impl MainWindow {
 
         open_path
     }
-    fn view_selected(&mut self, file: usize) {
+    fn view_selected(&mut self, file: usize, force_load: bool) {
         if file >= self.file_view.files.len() {
             return;
         }
@@ -214,16 +238,21 @@ impl MainWindow {
                     }));
                     return;
                 }
-                if EXT_WHITE_LIST.contains(&ext)
+                if force_load
+                    || EXT_WHITE_LIST.contains(&ext)
                     || !EXT_BLACK_LIST.contains(&ext) && !is_binary(entry)
                 {
-                    if let Ok(Ok(buf)) =
-                        entry.get_data(|path, data| Buffer::from_bytes(path, true, data))
-                    {
-                        self.start_time = std::time::Instant::now();
-                        self.in_scroll = true;
-                        self.buffer_view.lock().set_buffer(buf);
-                        self.loaded_buffer = true;
+                    match entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
+                        Ok(buf) => match buf {
+                            Ok(buf) => {
+                                self.buffer_view.lock().set_buffer(buf);
+                                self.loaded_buffer = true;
+                                self.start_time = std::time::Instant::now();
+                                self.in_scroll = true;
+                            }
+                            Err(err) => self.error_text = Some(err.to_string()),
+                        },
+                        Err(err) => self.error_text = Some(err.to_string()),
                     }
                 }
             }
@@ -241,12 +270,12 @@ impl MainWindow {
     pub fn handle_command(&mut self, _ctx: &Context, command: Option<Command>) {
         if let Some(command) = command {
             match command {
-                Command::Select(file) => {
-                    if self.file_view.selected_file != Some(file) {
+                Command::Select(file, fore_load) => {
+                    if self.file_view.selected_file != Some(file) || fore_load {
                         self.reset_state();
                         self.file_view.selected_file = Some(file);
                         self.file_view.scroll_pos = Some(file);
-                        self.view_selected(file);
+                        self.view_selected(file, fore_load);
                     }
                 }
                 Command::Refresh => {
@@ -257,7 +286,7 @@ impl MainWindow {
                     if self.open_selected(file) && !self.file_view.files.is_empty() {
                         self.file_view.selected_file = Some(0);
                         self.file_view.scroll_pos = Some(0);
-                        self.view_selected(file);
+                        self.view_selected(file, false);
                     }
                 }
                 Command::ParentFolder => {

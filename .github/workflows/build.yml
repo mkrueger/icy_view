@@ -75,7 +75,7 @@ jobs:
           file_id.diz
 
     - name: Copy exe
-      run: cp . .\target\release\*.exe
+      run: cp ".\target\release\${{ env.APP_NAME }}.exe" .
     - name: 'Upload Artifact 2'
       uses: actions/upload-artifact@v3
       with:

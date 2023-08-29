@@ -13,7 +13,7 @@ use std::{
 };
 
 pub enum Command {
-    Select(usize),
+    Select(usize, bool),
     Open(usize),
     Refresh,
     ParentFolder,
@@ -244,7 +244,7 @@ impl FileView {
                                         let selectable_label =
                                             ui.selectable_label(is_selected, label);
                                         if selectable_label.clicked() {
-                                            command = Some(Command::Select(first + i));
+                                            command = Some(Command::Select(first + i, false));
                                         }
                                         if let Some(sel) = self.scroll_pos {
                                             if sel == i {
@@ -315,11 +315,11 @@ impl FileView {
 
         if let Some(s) = self.selected_file {
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
-                command = Some(Command::Select(s.saturating_sub(1)));
+                command = Some(Command::Select(s.saturating_sub(1), false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
-                command = Some(Command::Select(s.saturating_add(1)));
+                command = Some(Command::Select(s.saturating_add(1), false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -328,22 +328,23 @@ impl FileView {
 
             if !self.files.is_empty() {
                 if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                    command = Some(Command::Select(0));
+                    command = Some(Command::Select(0, false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                    command = Some(Command::Select(self.files.len().saturating_sub(1)));
+                    command = Some(Command::Select(self.files.len().saturating_sub(1), false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
                     let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Command::Select(s.saturating_sub(page_size)));
+                    command = Some(Command::Select(s.saturating_sub(page_size), false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
                     let page_size = (area_res.inner_rect.height() / row_height) as usize;
                     command = Some(Command::Select(
                         (s.saturating_add(page_size)).min(self.files.len() - 1),
+                        false,
                     ));
                 }
             }
@@ -354,15 +355,15 @@ impl FileView {
                     || i.key_pressed(egui::Key::PageUp)
                     || i.key_pressed(egui::Key::PageDown)
             }) {
-                command = Some(Command::Select(0));
+                command = Some(Command::Select(0, false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                command = Some(Command::Select(0));
+                command = Some(Command::Select(0, false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                command = Some(Command::Select(self.files.len().saturating_sub(1)));
+                command = Some(Command::Select(self.files.len().saturating_sub(1), false));
             }
         }
         command
@@ -439,7 +440,7 @@ impl FileView {
         if let Some(file) = &self.pre_select_file {
             for (i, entry) in self.files.iter().enumerate() {
                 if entry.path.file_name().unwrap().to_string_lossy() == *file {
-                    return Command::Select(i).into();
+                    return Command::Select(i, false).into();
                 }
             }
         }
