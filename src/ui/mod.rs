@@ -166,7 +166,7 @@ impl MainWindow {
         } else {
             match self.file_view.selected_file {
                 Some(file) => {
-                    if self.file_view.files[file].path.is_dir() {
+                    if self.file_view.files[file].is_dir() {
                         return;
                     }
                     ui.add_space(ui.available_height() / 3.0);

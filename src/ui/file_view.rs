@@ -1,5 +1,5 @@
 use directories::UserDirs;
-use eframe::egui::{self, RichText, Context};
+use eframe::egui::{self, Context, RichText};
 use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, RetainedImage, TableBuilder};
 use icy_engine::SauceData;
@@ -25,6 +25,7 @@ pub struct FileEntry {
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
     pub sauce: Option<SauceData>,
+    is_dir: Option<bool>,
 }
 
 impl FileEntry {
@@ -76,6 +77,13 @@ impl FileEntry {
         if let Ok(Ok(data)) = self.get_data(|_, data| SauceData::extract(data)) {
             self.sauce = Some(data);
         }
+    }
+
+    pub(crate) fn is_dir(&self) -> bool {
+        if let Some(is_dir) = self.is_dir {
+            return is_dir;
+        }
+        self.path.is_dir()
     }
 }
 
@@ -235,13 +243,12 @@ impl FileView {
                             };
 
                             body.row(row_height, |mut row| {
-
                                 row.col(|ui| {
                                     if is_selected
                                         || ui.is_rect_visible(ui.available_rect_before_wrap())
                                     {
                                         entry.load_sauce();
-                                        let label = match entry.path.is_dir() {
+                                        let label = match entry.is_dir() {
                                             true => "🗀 ",
                                             false => "🗋 ",
                                         }
@@ -268,7 +275,10 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(RichText::new(sauce.title.to_string()).color(text_color));
+                                            ui.label(
+                                                RichText::new(sauce.title.to_string())
+                                                    .color(text_color),
+                                            );
                                         } else {
                                             ui.label("");
                                         }
@@ -277,7 +287,10 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(RichText::new(sauce.author.to_string()).color(text_color));
+                                            ui.label(
+                                                RichText::new(sauce.author.to_string())
+                                                    .color(text_color),
+                                            );
                                         } else {
                                             ui.label("");
                                         }
@@ -286,7 +299,10 @@ impl FileView {
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
                                         if let Some(sauce) = &entry.sauce {
-                                            ui.label(RichText::new(sauce.group.to_string()).color(text_color));
+                                            ui.label(
+                                                RichText::new(sauce.group.to_string())
+                                                    .color(text_color),
+                                            );
                                         } else {
                                             ui.label("");
                                         }
@@ -294,15 +310,18 @@ impl FileView {
                                 });
                                 row.col(|ui| {
                                     if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                        if entry.path.is_dir() {
+                                        if entry.is_dir() {
                                             ui.label("");
                                         } else if let Some(sauce) = &entry.sauce {
-                                            ui.label(RichText::new(format!(
-                                                "{}x{} {}",
-                                                sauce.buffer_size.width,
-                                                sauce.buffer_size.height,
-                                                if sauce.use_ice { "(ICE)" } else { "" }
-                                            )).color(text_color));
+                                            ui.label(
+                                                RichText::new(format!(
+                                                    "{}x{} {}",
+                                                    sauce.buffer_size.width,
+                                                    sauce.buffer_size.height,
+                                                    if sauce.use_ice { "(ICE)" } else { "" }
+                                                ))
+                                                .color(text_color),
+                                            );
                                         } else {
                                             ui.label("");
                                         }
@@ -405,6 +424,7 @@ impl FileView {
                                         file_data: Some(data),
                                         read_sauce: false,
                                         sauce: None,
+                                        is_dir: Some(file.is_dir()),
                                     };
                                     self.files.push(entry);
                                 }
@@ -433,6 +453,7 @@ impl FileView {
                             read_sauce: false,
                             sauce: None,
                             file_data: None,
+                            is_dir: None,
                         })
                         .collect();
                 }
