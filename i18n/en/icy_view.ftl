@@ -9,8 +9,8 @@ menu-item-report-bug=Report a bug
 menu-item-check-releases=Latest release
 menu-item-auto-scroll=Auto scroll
 menu-item-scroll-speed-slow=Slow speed
-menu-item-scroll-speed-medium=Light speed
-menu-item-scroll-speed-fast=Ludicrous speed
+menu-item-scroll-speed-medium=Medium speed
+menu-item-scroll-speed-fast=Fast speed
 
 tooltip-refresh=Refresh
 tooltip-reset-filter-button=Reset filter
@@ -38,3 +38,9 @@ help-dialog-text=
     F2 - Toggle auto scrolling
     F3 - Toggle scroll speed 
     F4 - Show sauce info
+
+toast-auto-scroll-on=Auto scroll on
+toast-auto-scroll-off=Auto scroll off
+toast-scroll-slow=Scroll speed: slow
+toast-scroll-medium=Scroll speed: medium
+toast-scroll-fast=Scroll speed: fast

@@ -8,9 +8,9 @@ menu-item-discuss=Diskussion
 menu-item-report-bug=Fehler melden
 menu-item-check-releases=Neue Versionen suchen
 menu-item-auto-scroll=Automatisches Scrollen
-menu-item-scroll-speed-slow=Langsam
-menu-item-scroll-speed-medium=Lichtgeschwindigkeit
-menu-item-scroll-speed-fast=Wahnsinnige Geschwindigkeit
+menu-item-scroll-speed-slow=Langsam scrollen
+menu-item-scroll-speed-medium=Mittel scrollen
+menu-item-scroll-speed-fast=Schnell scrollen
 
 tooltip-refresh=Neu laden
 tooltip-reset-filter-button=Filter zurücksetzen
@@ -38,4 +38,9 @@ help-dialog-text=
     F2 - Automatisches Scrollen an/aus
     F3 - Geschwindigeit umstellen
     F4 - Sauce-Informationen anzeigen
-    
+
+toast-auto-scroll-on=Automatisches Scrollen an
+toast-auto-scroll-off=Automatisches Scrollen aus
+toast-scroll-slow=Scrollgeschwindigkeit: langsam
+toast-scroll-medium=Scrollgeschwindigkeit: mittel
+toast-scroll-fast=Scrollgeschwindigkeit: schnell
