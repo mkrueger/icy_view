@@ -225,6 +225,13 @@ impl FileView {
                     if r.clicked() {
                         ui.close_menu();
                     }
+                    let r = ui.hyperlink_to(
+                        fl!(crate::LANGUAGE_LOADER, "menu-item-check-releases"),
+                        "https://github.com/mkrueger/icy_view/releases/latest",
+                    );
+                    if r.clicked() {
+                        ui.close_menu();
+                    }
                     ui.separator();
                     let mut b = self.auto_scroll_enabled;
                     if ui

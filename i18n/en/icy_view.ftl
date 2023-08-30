@@ -6,6 +6,7 @@ heading-screen-mode=Screen mode
 
 menu-item-discuss=Discuss
 menu-item-report-bug=Report a bug
+menu-item-check-releases=Latest release
 menu-item-auto-scroll=Auto scroll
 menu-item-scroll-speed-slow=Slow speed
 menu-item-scroll-speed-medium=Light speed

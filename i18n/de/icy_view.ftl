@@ -6,6 +6,7 @@ heading-screen-mode=Bildschirmmodus
 
 menu-item-discuss=Diskussion
 menu-item-report-bug=Fehler melden
+menu-item-check-releases=Neue Versionen suchen
 menu-item-auto-scroll=Automatisches Scrollen
 menu-item-scroll-speed-slow=Langsam
 menu-item-scroll-speed-medium=Lichtgeschwindigkeit
