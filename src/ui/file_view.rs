@@ -418,40 +418,72 @@ impl FileView {
             .response
         });
 
-        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
-            return Some(Message::ParentFolder);
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::F1)) {
-            return Some(Message::ShowHelpDialog);
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::F2)) {
-            return Some(Message::ToggleAutoScroll);
-        }
-
-        if ui.input(|i| i.key_pressed(egui::Key::F3)) {
-            return Some(Message::ChangeScrollSpeed);
-        }
-
-        if let Some(s) = self.selected_file {
-            if ui.input(|i| i.key_pressed(egui::Key::F4)) {
-                return Some(Message::ShowSauce(s));
+        if ui.is_enabled() {
+            if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
+                return Some(Message::ParentFolder);
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
-                command = Some(Message::Select(s.saturating_sub(1), false));
+            if ui.input(|i| i.key_pressed(egui::Key::F1)) {
+                return Some(Message::ShowHelpDialog);
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
-                command = Some(Message::Select(s.saturating_add(1), false));
+            if ui.input(|i| i.key_pressed(egui::Key::F2)) {
+                return Some(Message::ToggleAutoScroll);
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                command = Some(Message::Open(s));
+            if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+                return Some(Message::ChangeScrollSpeed);
             }
 
-            if !self.files.is_empty() {
+            if let Some(s) = self.selected_file {
+                if ui.input(|i| i.key_pressed(egui::Key::F4)) {
+                    return Some(Message::ShowSauce(s));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
+                    command = Some(Message::Select(s.saturating_sub(1), false));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
+                    command = Some(Message::Select(s.saturating_add(1), false));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    command = Some(Message::Open(s));
+                }
+
+                if !self.files.is_empty() {
+                    if ui.input(|i| i.key_pressed(egui::Key::Home)) {
+                        command = Some(Message::Select(0, false));
+                    }
+
+                    if ui.input(|i| i.key_pressed(egui::Key::End)) {
+                        command = Some(Message::Select(self.files.len().saturating_sub(1), false));
+                    }
+
+                    if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
+                        let page_size = (area_res.inner_rect.height() / row_height) as usize;
+                        command = Some(Message::Select(s.saturating_sub(page_size), false));
+                    }
+
+                    if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
+                        let page_size = (area_res.inner_rect.height() / row_height) as usize;
+                        command = Some(Message::Select(
+                            (s.saturating_add(page_size)).min(self.files.len() - 1),
+                            false,
+                        ));
+                    }
+                }
+            } else if !self.files.is_empty() {
+                if ui.input(|i| {
+                    i.key_pressed(egui::Key::ArrowUp)
+                        || i.key_pressed(egui::Key::ArrowDown)
+                        || i.key_pressed(egui::Key::PageUp)
+                        || i.key_pressed(egui::Key::PageDown)
+                }) {
+                    command = Some(Message::Select(0, false));
+                }
+
                 if ui.input(|i| i.key_pressed(egui::Key::Home)) {
                     command = Some(Message::Select(0, false));
                 }
@@ -459,36 +491,6 @@ impl FileView {
                 if ui.input(|i| i.key_pressed(egui::Key::End)) {
                     command = Some(Message::Select(self.files.len().saturating_sub(1), false));
                 }
-
-                if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
-                    let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Message::Select(s.saturating_sub(page_size), false));
-                }
-
-                if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
-                    let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Message::Select(
-                        (s.saturating_add(page_size)).min(self.files.len() - 1),
-                        false,
-                    ));
-                }
-            }
-        } else if !self.files.is_empty() {
-            if ui.input(|i| {
-                i.key_pressed(egui::Key::ArrowUp)
-                    || i.key_pressed(egui::Key::ArrowDown)
-                    || i.key_pressed(egui::Key::PageUp)
-                    || i.key_pressed(egui::Key::PageDown)
-            }) {
-                command = Some(Message::Select(0, false));
-            }
-
-            if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                command = Some(Message::Select(0, false));
-            }
-
-            if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                command = Some(Message::Select(self.files.len().saturating_sub(1), false));
             }
         }
         command
