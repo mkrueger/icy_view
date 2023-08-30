@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, Context, RichText, ScrollArea, CursorIcon},
+    egui::{self, Context, CursorIcon, RichText, ScrollArea},
     epaint::{Color32, Vec2},
     App, Frame,
 };
@@ -35,10 +35,9 @@ pub struct MainWindow {
     retained_image: Option<RetainedImage>,
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
-    help_dialog: Option<help_dialog::HelpDialog>
-
+    help_dialog: Option<help_dialog::HelpDialog>,
 }
-const SCROLL_SPEED: [f32;3] = [ 80.0, 160.0, 320.0];
+const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
 const EXT_WHITE_LIST: [&str; 13] = [
     "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq", "asc", "diz", "nfo",
 ];
@@ -98,14 +97,10 @@ impl App for MainWindow {
             frame.set_fullscreen(self.full_screen_mode);
         }
 
-        if ctx.input(|i| {
-            i.key_pressed(egui::Key::Q) && i.modifiers.alt
-        }) {
+        if ctx.input(|i| i.key_pressed(egui::Key::Q) && i.modifiers.alt) {
             frame.close();
         }
-        if ctx.input(|i| {
-            i.key_pressed(egui::Key::Escape)
-        }) {
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             if self.sauce_dialog.is_some() {
                 self.sauce_dialog = None;
             } else if self.help_dialog.is_some() {
@@ -143,7 +138,7 @@ impl MainWindow {
             sauce_dialog: None,
             help_dialog: None,
             cur_scroll_pos: 0.0,
-            vel: 0.0
+            vel: 0.0,
         }
     }
 
@@ -174,7 +169,9 @@ impl MainWindow {
                         Some(fl!(crate::LANGUAGE_LOADER, "error-never-happens").to_string());
                 }
             } else {
-                ui.centered_and_justified(|ui| ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image")));
+                ui.centered_and_justified(|ui| {
+                    ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image"))
+                });
             }
             return;
         }
@@ -196,15 +193,23 @@ impl MainWindow {
                 scale: Some(Vec2::new(scale, scale)),
                 font_extension: icy_engine_egui::FontExtension::Off,
                 use_terminal_height: false,
-                scroll_offset: if self.in_scroll { Some((self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt).round()) } else { Some(self.cur_scroll_pos.round()) },
+                scroll_offset: if self.in_scroll {
+                    Some(
+                        (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt)
+                            .round(),
+                    )
+                } else {
+                    Some(self.cur_scroll_pos.round())
+                },
                 ..Default::default()
             };
 
-            let (response, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+            let (response, calc) =
+                icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
 
             // stop scrolling when reached the end.
             if self.in_scroll {
-                let last_scroll_pos = calc.char_height - calc.buffer_char_height ;
+                let last_scroll_pos = calc.char_height - calc.buffer_char_height;
                 if last_scroll_pos <= calc.char_scroll_positon / calc.font_height {
                     self.in_scroll = false;
                 }
@@ -221,9 +226,8 @@ impl MainWindow {
                     self.in_scroll = false;
                 });
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
-
             } else {
-                let friction_coeff = 10.0; 
+                let friction_coeff = 10.0;
                 let dt = ui.input(|i| i.unstable_dt);
 
                 let friction = friction_coeff * dt;
@@ -241,15 +245,20 @@ impl MainWindow {
                     }
                     ui.add_space(ui.available_height() / 3.0);
                     ui.vertical_centered(|ui| {
-                        ui.heading(fl!(crate::LANGUAGE_LOADER, "message-file-not-supported", name=self.file_view.files[self.file_view.selected_file.unwrap()]
-                        .path
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy())
-                    );
+                        ui.heading(fl!(
+                            crate::LANGUAGE_LOADER,
+                            "message-file-not-supported",
+                            name = self.file_view.files[self.file_view.selected_file.unwrap()]
+                                .path
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                        ));
                         ui.add_space(8.0);
                         if ui
-                            .button(RichText::heading(fl!(crate::LANGUAGE_LOADER, "button-load-anyways").into()))
+                            .button(RichText::heading(
+                                fl!(crate::LANGUAGE_LOADER, "button-load-anyways").into(),
+                            ))
                             .clicked()
                         {
                             self.handle_command(Some(Command::Select(file, true)));
@@ -387,7 +396,8 @@ impl MainWindow {
                     self.help_dialog = Some(help_dialog::HelpDialog::new());
                 }
                 Command::ChangeScrollSpeed => {
-                    self.file_view.scroll_speed = (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
+                    self.file_view.scroll_speed =
+                        (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
                 }
             };
         }

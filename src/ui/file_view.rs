@@ -21,7 +21,7 @@ pub enum Command {
     ToggleAutoScroll,
     ShowSauce(usize),
     ShowHelpDialog,
-    ChangeScrollSpeed
+    ChangeScrollSpeed,
 }
 
 #[derive(Clone)]
@@ -92,7 +92,6 @@ impl FileEntry {
     }
 
     fn is_dir_or_archive(&self) -> bool {
-
         if let Some(ext) = self.path.extension() {
             if ext.to_string_lossy().to_ascii_lowercase() == "zip" {
                 return true;
@@ -162,7 +161,7 @@ impl FileView {
             files: Vec::new(),
             filter: String::new(),
             auto_scroll_enabled: true,
-            scroll_speed: 1
+            scroll_speed: 1,
         }
     }
 
@@ -185,19 +184,27 @@ impl FileView {
                     });
                 }
                 None => {
-                    ui.colored_label(ui.style().visuals.error_fg_color, fl!(crate::LANGUAGE_LOADER, "error-invalid-path"));
+                    ui.colored_label(
+                        ui.style().visuals.error_fg_color,
+                        fl!(crate::LANGUAGE_LOADER, "error-invalid-path"),
+                    );
                 }
             }
-            let response = ui.button("⟲").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
+            let response = ui
+                .button("⟲")
+                .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
             if response.clicked() {
                 command = Some(Command::Refresh);
             }
             ui.separator();
             ui.add_sized(
                 [250.0, 20.0],
-                TextEdit::singleline(&mut self.filter).hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")),
+                TextEdit::singleline(&mut self.filter)
+                    .hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")),
             );
-            let response = ui.button("🗙").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
+            let response = ui
+                .button("🗙")
+                .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
             if response.clicked() {
                 self.filter.clear();
             }
@@ -220,7 +227,10 @@ impl FileView {
                     }
                     ui.separator();
                     let mut b = self.auto_scroll_enabled;
-                    if ui.checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
+                    if ui
+                        .checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"))
+                        .clicked()
+                    {
                         command = Some(Command::ToggleAutoScroll);
                         ui.close_menu();
                     }
@@ -228,7 +238,7 @@ impl FileView {
                         2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
                         0 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium"),
                         1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
-                        _ => panic!()
+                        _ => panic!(),
                     };
 
                     let r = ui.selectable_label(false, title);
@@ -238,8 +248,6 @@ impl FileView {
                     }
                 });
             });
-
-
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
@@ -321,9 +329,10 @@ impl FileView {
                                         .to_string()
                                             + get_file_name(&entry.path);
 
-                                        let selectable_label =
-                                            ui.selectable_label(is_selected, RichText::new(label)
-                                            .color(text_color));
+                                        let selectable_label = ui.selectable_label(
+                                            is_selected,
+                                            RichText::new(label).color(text_color),
+                                        );
                                         if selectable_label.clicked() {
                                             command = Some(Command::Select(first + i, false));
                                         }
@@ -422,7 +431,7 @@ impl FileView {
             if ui.input(|i| i.key_pressed(egui::Key::F4)) {
                 return Some(Command::ShowSauce(s));
             }
-    
+
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
                 command = Some(Command::Select(s.saturating_sub(1), false));
             }

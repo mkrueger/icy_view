@@ -4,18 +4,16 @@ use i18n_embed_fl::fl;
 use icy_engine::SauceData;
 
 pub struct SauceDialog {
-    sauce: SauceData
+    sauce: SauceData,
 }
 
 pub enum Message {
-    CloseDialog
+    CloseDialog,
 }
 
 impl SauceDialog {
     pub fn new(sauce: SauceData) -> Self {
-        Self {
-            sauce
-        }
+        Self { sauce }
     }
 
     pub fn show(&mut self, ctx: &egui::Context) -> Option<Message> {
@@ -23,7 +21,7 @@ impl SauceDialog {
         let modal = Modal::new(ctx, "protocol_modal");
         modal.show(|ui| {
             modal.title(ui, fl!(crate::LANGUAGE_LOADER, "sauce-dialog-title"));
-    
+
             modal.frame(ui, |ui: &mut egui::Ui| {
                 egui::Grid::new("some_unique_id")
                     .num_columns(2)
@@ -32,20 +30,29 @@ impl SauceDialog {
                         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-title-label"));
                         });
-                        ui.add(egui::TextEdit::singleline(&mut self.sauce.title.to_string().as_str()).char_limit(35));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.sauce.title.to_string().as_str())
+                                .char_limit(35),
+                        );
                         ui.end_row();
 
                         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-author-label"));
                         });
 
-                        ui.add(egui::TextEdit::singleline(&mut self.sauce.author.to_string().as_str()).char_limit(20));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.sauce.author.to_string().as_str())
+                                .char_limit(20),
+                        );
                         ui.end_row();
 
                         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-group-label"));
                         });
-                        ui.add(egui::TextEdit::singleline(&mut self.sauce.group.to_string().as_str()).char_limit(20));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.sauce.group.to_string().as_str())
+                                .char_limit(20),
+                        );
                         ui.end_row();
 
                         // TODO: Implement date support.
@@ -75,10 +82,7 @@ impl SauceDialog {
 
             modal.buttons(ui, |ui| {
                 if modal
-                    .button(
-                        ui,
-                        fl!(crate::LANGUAGE_LOADER, "button-ok"),
-                    )
+                    .button(ui, fl!(crate::LANGUAGE_LOADER, "button-ok"))
                     .clicked()
                 {
                     message = Some(Message::CloseDialog);
@@ -86,7 +90,7 @@ impl SauceDialog {
             });
         });
         modal.open();
-    
+
         message
     }
 }

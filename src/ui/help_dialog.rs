@@ -1,18 +1,19 @@
-use eframe::{egui::{self}, epaint::FontId};
+use eframe::{
+    egui::{self},
+    epaint::FontId,
+};
 use egui_modal::Modal;
 use i18n_embed_fl::fl;
 
-pub struct HelpDialog {
-}
+pub struct HelpDialog {}
 
 pub enum Message {
-    CloseDialog
+    CloseDialog,
 }
 
 impl HelpDialog {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 
     pub fn show(&mut self, ctx: &egui::Context) -> Option<Message> {
@@ -20,7 +21,7 @@ impl HelpDialog {
         let modal = Modal::new(ctx, "protocol_modal");
         modal.show(|ui| {
             modal.title(ui, fl!(crate::LANGUAGE_LOADER, "help-dialog-title"));
-    
+
             modal.frame(ui, |ui: &mut egui::Ui| {
                 let help = fl!(crate::LANGUAGE_LOADER, "help-dialog-text");
                 egui::ScrollArea::vertical()
@@ -37,10 +38,7 @@ impl HelpDialog {
 
             modal.buttons(ui, |ui| {
                 if modal
-                    .button(
-                        ui,
-                        fl!(crate::LANGUAGE_LOADER, "button-ok"),
-                    )
+                    .button(ui, fl!(crate::LANGUAGE_LOADER, "button-ok"))
                     .clicked()
                 {
                     message = Some(Message::CloseDialog);
@@ -48,7 +46,7 @@ impl HelpDialog {
             });
         });
         modal.open();
-    
+
         message
     }
 }
