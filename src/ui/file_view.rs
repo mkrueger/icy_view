@@ -20,7 +20,8 @@ pub enum Command {
     ParentFolder,
     ToggleAutoScroll,
     ShowSauce(usize),
-    ShowHelpDialog
+    ShowHelpDialog,
+    ChangeScrollSpeed
 }
 
 #[derive(Clone)]
@@ -119,6 +120,7 @@ pub struct FileView {
     pub files: Vec<FileEntry>,
 
     pub auto_scroll_enabled: bool,
+    pub scroll_speed: usize,
     pub filter: String,
     pre_select_file: Option<String>,
 }
@@ -159,7 +161,8 @@ impl FileView {
             scroll_pos: None,
             files: Vec::new(),
             filter: String::new(),
-            auto_scroll_enabled: true
+            auto_scroll_enabled: true,
+            scroll_speed: 1
         }
     }
 
@@ -216,7 +219,21 @@ impl FileView {
                         ui.close_menu();
                     }
                     ui.separator();
-                    if ui.checkbox(&mut self.auto_scroll_enabled, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
+                    let mut b = self.auto_scroll_enabled;
+                    if ui.checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
+                        command = Some(Command::ToggleAutoScroll);
+                        ui.close_menu();
+                    }
+                    let title = match self.scroll_speed {
+                        2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
+                        0 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium"),
+                        1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
+                        _ => panic!()
+                    };
+
+                    let r = ui.selectable_label(false, title);
+                    if r.clicked() {
+                        command = Some(Command::ChangeScrollSpeed);
                         ui.close_menu();
                     }
                 });
@@ -397,9 +414,12 @@ impl FileView {
             return Some(Command::ToggleAutoScroll);
         }
 
+        if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+            return Some(Command::ChangeScrollSpeed);
+        }
 
         if let Some(s) = self.selected_file {
-            if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+            if ui.input(|i| i.key_pressed(egui::Key::F4)) {
                 return Some(Command::ShowSauce(s));
             }
     

@@ -7,6 +7,9 @@ heading-screen-mode=Bildschirmmodus
 menu-item-discuss=Diskussion
 menu-item-report-bug=Fehler melden
 menu-item-auto-scroll=Automatisches Scrollen
+menu-item-scroll-speed-slow=Langsam
+menu-item-scroll-speed-medium=Lichtgeschwindigkeit
+menu-item-scroll-speed-fast=Wahnsinnige Geschwindigkeit
 
 tooltip-refresh=Neu laden
 tooltip-reset-filter-button=Filter zurücksetzen
@@ -32,4 +35,6 @@ help-dialog-title=Hilfe
 help-dialog-text=
     F1 - Hilfe
     F2 - Automatisches Scrollen an/aus
-    F3 - Sauce-Informationen anzeigen
+    F3 - Geschwindigeit umstellen
+    F4 - Sauce-Informationen anzeigen
+    

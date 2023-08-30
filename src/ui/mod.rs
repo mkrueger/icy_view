@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, Context, RichText, ScrollArea},
+    egui::{self, Context, RichText, ScrollArea, CursorIcon},
     epaint::{Color32, Vec2},
     App, Frame,
 };
@@ -22,8 +22,10 @@ mod sauce_dialog;
 pub struct MainWindow {
     buffer_view: Arc<eframe::epaint::mutex::Mutex<BufferView>>,
     pub file_view: FileView,
-    pub start_time: std::time::Instant,
     pub in_scroll: bool,
+    cur_scroll_pos: f32,
+    vel: f32,
+
     pub error_text: Option<String>,
 
     full_screen_mode: bool,
@@ -34,8 +36,9 @@ pub struct MainWindow {
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
     help_dialog: Option<help_dialog::HelpDialog>
-}
 
+}
+const SCROLL_SPEED: [f32;3] = [ 80.0, 160.0, 320.0];
 const EXT_WHITE_LIST: [&str; 13] = [
     "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq", "asc", "diz", "nfo",
 ];
@@ -125,12 +128,12 @@ impl MainWindow {
             glow::NEAREST as i32,
             icy_engine_egui::FontExtension::Off,
         );
+        view.buf.is_terminal_buffer = false;
         view.caret.is_visible = false;
 
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
             file_view: FileView::new(cli.path),
-            start_time: std::time::Instant::now(),
             in_scroll: false,
             image_loading_thread: None,
             retained_image: None,
@@ -138,7 +141,9 @@ impl MainWindow {
             error_text: None,
             loaded_buffer: false,
             sauce_dialog: None,
-            help_dialog: None
+            help_dialog: None,
+            cur_scroll_pos: 0.0,
+            vel: 0.0
         }
     }
 
@@ -184,22 +189,47 @@ impl MainWindow {
         if self.loaded_buffer {
             let w = (ui.available_width() / 8.0).floor();
             let scale = (w / self.buffer_view.lock().buf.get_width() as f32).min(2.0);
-            let sp = (self.start_time.elapsed().as_millis() as f32 / 6.0).round();
+            let dt = ui.input(|i| i.unstable_dt);
             let opt = icy_engine_egui::TerminalOptions {
                 focus_lock: false,
                 stick_to_bottom: false,
                 scale: Some(Vec2::new(scale, scale)),
                 font_extension: icy_engine_egui::FontExtension::Off,
                 use_terminal_height: false,
-                scroll_offset: if self.in_scroll { Some(sp) } else { None },
+                scroll_offset: if self.in_scroll { Some((self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt).round()) } else { Some(self.cur_scroll_pos.round()) },
                 ..Default::default()
             };
 
-            let (_, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+            let (response, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
 
             // stop scrolling when reached the end.
-            if sp > calc.font_height * (calc.char_height - calc.buffer_char_height).max(0.0) {
-                self.in_scroll = false;
+            if self.in_scroll {
+                let last_scroll_pos = calc.char_height - calc.buffer_char_height ;
+                if last_scroll_pos <= calc.char_scroll_positon / calc.font_height {
+                    self.in_scroll = false;
+                }
+            }
+            self.cur_scroll_pos = calc.char_scroll_positon;
+
+            if response.drag_started() {
+                ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
+            }
+            if response.dragged() {
+                ui.input(|input| {
+                    self.cur_scroll_pos -= input.pointer.delta().y;
+                    self.vel = input.pointer.velocity().y;
+                    self.in_scroll = false;
+                });
+                ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
+
+            } else {
+                let friction_coeff = 10.0; 
+                let dt = ui.input(|i| i.unstable_dt);
+
+                let friction = friction_coeff * dt;
+                self.vel -= friction * self.vel;
+                self.cur_scroll_pos -= self.vel * dt;
+                ui.ctx().request_repaint();
             }
 
             self.in_scroll &= !calc.set_scroll_position_set_by_user;
@@ -291,7 +321,6 @@ impl MainWindow {
                         Ok(buf) => {
                             self.buffer_view.lock().set_buffer(buf);
                             self.loaded_buffer = true;
-                            self.start_time = std::time::Instant::now();
                             self.in_scroll = true;
                         }
                         Err(err) => self.error_text = Some(err.to_string()),
@@ -308,6 +337,7 @@ impl MainWindow {
         self.error_text = None;
         self.loaded_buffer = false;
         self.file_view.selected_file = None;
+        self.cur_scroll_pos = 0.0;
     }
 
     pub fn handle_command(&mut self, command: Option<Command>) {
@@ -343,8 +373,8 @@ impl MainWindow {
                     }
                 }
                 Command::ToggleAutoScroll => {
-                    self.file_view.auto_scroll_enabled = !self.file_view.auto_scroll_enabled;
-//                    self.in_scroll = self.file_view.auto_scroll_enabled;
+                    self.file_view.auto_scroll_enabled = !self.in_scroll;
+                    self.in_scroll = self.file_view.auto_scroll_enabled;
                 }
                 Command::ShowSauce(file) => {
                     if file < self.file_view.files.len() {
@@ -355,6 +385,9 @@ impl MainWindow {
                 }
                 Command::ShowHelpDialog => {
                     self.help_dialog = Some(help_dialog::HelpDialog::new());
+                }
+                Command::ChangeScrollSpeed => {
+                    self.file_view.scroll_speed = (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
                 }
             };
         }
