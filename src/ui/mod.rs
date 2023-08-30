@@ -16,6 +16,8 @@ use crate::Cli;
 use self::file_view::{Command, FileEntry, FileView};
 
 mod file_view;
+mod help_dialog;
+mod sauce_dialog;
 
 pub struct MainWindow {
     buffer_view: Arc<eframe::epaint::mutex::Mutex<BufferView>>,
@@ -29,6 +31,9 @@ pub struct MainWindow {
 
     image_loading_thread: Option<JoinHandle<io::Result<RetainedImage>>>,
     retained_image: Option<RetainedImage>,
+
+    sauce_dialog: Option<sauce_dialog::SauceDialog>,
+    help_dialog: Option<help_dialog::HelpDialog>
 }
 
 const EXT_WHITE_LIST: [&str; 13] = [
@@ -63,6 +68,26 @@ impl App for MainWindow {
             ctx.request_repaint_after(Duration::from_millis(150));
         }
 
+        if let Some(sauce_dialog) = &mut self.sauce_dialog {
+            if let Some(message) = sauce_dialog.show(ctx) {
+                match message {
+                    sauce_dialog::Message::CloseDialog => {
+                        self.sauce_dialog = None;
+                    }
+                }
+            }
+        }
+
+        if let Some(help_dialog) = &mut self.help_dialog {
+            if let Some(message) = help_dialog.show(ctx) {
+                match message {
+                    help_dialog::Message::CloseDialog => {
+                        self.help_dialog = None;
+                    }
+                }
+            }
+        }
+
         if ctx.input(|i| {
             i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt
         }) {
@@ -71,9 +96,20 @@ impl App for MainWindow {
         }
 
         if ctx.input(|i| {
-            i.key_pressed(egui::Key::Escape) || i.key_pressed(egui::Key::Q) && i.modifiers.alt
+            i.key_pressed(egui::Key::Q) && i.modifiers.alt
         }) {
             frame.close();
+        }
+        if ctx.input(|i| {
+            i.key_pressed(egui::Key::Escape)
+        }) {
+            if self.sauce_dialog.is_some() {
+                self.sauce_dialog = None;
+            } else if self.help_dialog.is_some() {
+                self.help_dialog = None;
+            } else {
+                frame.close();
+            }
         }
     }
 }
@@ -101,6 +137,8 @@ impl MainWindow {
             full_screen_mode: false,
             error_text: None,
             loaded_buffer: false,
+            sauce_dialog: None,
+            help_dialog: None
         }
     }
 
@@ -303,6 +341,20 @@ impl MainWindow {
                         self.file_view.set_path(p);
                         self.handle_command(Some(Command::Select(0, false)));
                     }
+                }
+                Command::ToggleAutoScroll => {
+                    self.file_view.auto_scroll_enabled = !self.file_view.auto_scroll_enabled;
+//                    self.in_scroll = self.file_view.auto_scroll_enabled;
+                }
+                Command::ShowSauce(file) => {
+                    if file < self.file_view.files.len() {
+                        if let Some(sauce) = self.file_view.files[file].get_sauce() {
+                            self.sauce_dialog = Some(sauce_dialog::SauceDialog::new(sauce));
+                        }
+                    }
+                }
+                Command::ShowHelpDialog => {
+                    self.help_dialog = Some(help_dialog::HelpDialog::new());
                 }
             };
         }

@@ -18,6 +18,9 @@ pub enum Command {
     Open(usize),
     Refresh,
     ParentFolder,
+    ToggleAutoScroll,
+    ShowSauce(usize),
+    ShowHelpDialog
 }
 
 #[derive(Clone)]
@@ -96,6 +99,13 @@ impl FileEntry {
         }
 
         self.is_dir()
+    }
+
+    pub(crate) fn get_sauce(&self) -> Option<SauceData> {
+        if !self.read_sauce {
+            return None;
+        }
+        self.sauce.clone()
     }
 }
 
@@ -379,7 +389,20 @@ impl FileView {
             return Some(Command::ParentFolder);
         }
 
+        if ui.input(|i| i.key_pressed(egui::Key::F1)) {
+            return Some(Command::ShowHelpDialog);
+        }
+
+        if ui.input(|i| i.key_pressed(egui::Key::F2)) {
+            return Some(Command::ToggleAutoScroll);
+        }
+
+
         if let Some(s) = self.selected_file {
+            if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+                return Some(Command::ShowSauce(s));
+            }
+    
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
                 command = Some(Command::Select(s.saturating_sub(1), false));
             }
