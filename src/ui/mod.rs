@@ -13,7 +13,7 @@ use std::{io, sync::Arc, thread::JoinHandle, time::Duration};
 
 use crate::Cli;
 
-use self::file_view::{Command, FileEntry, FileView};
+use self::file_view::{FileEntry, FileView, Message};
 
 mod file_view;
 mod help_dialog;
@@ -266,7 +266,7 @@ impl MainWindow {
                             ))
                             .clicked()
                         {
-                            self.handle_command(Some(Command::Select(file, true)));
+                            self.handle_command(Some(Message::Select(file, true)));
                         }
                     });
                 }
@@ -354,10 +354,10 @@ impl MainWindow {
         self.cur_scroll_pos = 0.0;
     }
 
-    pub fn handle_command(&mut self, command: Option<Command>) {
+    pub fn handle_command(&mut self, command: Option<Message>) {
         if let Some(command) = command {
             match command {
-                Command::Select(file, fore_load) => {
+                Message::Select(file, fore_load) => {
                     if self.file_view.selected_file != Some(file) || fore_load {
                         self.reset_state();
                         if file < self.file_view.files.len() {
@@ -367,26 +367,26 @@ impl MainWindow {
                         }
                     }
                 }
-                Command::Refresh => {
+                Message::Refresh => {
                     self.reset_state();
                     self.file_view.refresh();
                 }
-                Command::Open(file) => {
+                Message::Open(file) => {
                     if self.open_selected(file) && !self.file_view.files.is_empty() {
                         self.file_view.selected_file = Some(0);
                         self.file_view.scroll_pos = Some(0);
                         self.view_selected(file, false);
                     }
                 }
-                Command::ParentFolder => {
+                Message::ParentFolder => {
                     let mut p = self.file_view.get_path();
                     if p.pop() {
                         self.reset_state();
                         self.file_view.set_path(p);
-                        self.handle_command(Some(Command::Select(0, false)));
+                        self.handle_command(Some(Message::Select(0, false)));
                     }
                 }
-                Command::ToggleAutoScroll => {
+                Message::ToggleAutoScroll => {
                     self.file_view.auto_scroll_enabled = !self.in_scroll;
                     self.in_scroll = self.file_view.auto_scroll_enabled;
 
@@ -400,17 +400,17 @@ impl MainWindow {
                             .set_duration(Some(Duration::from_secs(3)));
                     }
                 }
-                Command::ShowSauce(file) => {
+                Message::ShowSauce(file) => {
                     if file < self.file_view.files.len() {
                         if let Some(sauce) = self.file_view.files[file].get_sauce() {
                             self.sauce_dialog = Some(sauce_dialog::SauceDialog::new(sauce));
                         }
                     }
                 }
-                Command::ShowHelpDialog => {
+                Message::ShowHelpDialog => {
                     self.help_dialog = Some(help_dialog::HelpDialog::new());
                 }
-                Command::ChangeScrollSpeed => {
+                Message::ChangeScrollSpeed => {
                     self.file_view.scroll_speed =
                         (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
 

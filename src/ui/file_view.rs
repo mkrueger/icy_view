@@ -13,7 +13,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-pub enum Command {
+pub enum Message {
     Select(usize, bool),
     Open(usize),
     Refresh,
@@ -165,14 +165,14 @@ impl FileView {
         }
     }
 
-    pub(crate) fn show_ui(&mut self, ctx: &Context, ui: &mut Ui) -> Option<Command> {
-        let mut command: Option<Command> = None;
+    pub(crate) fn show_ui(&mut self, ctx: &Context, ui: &mut Ui) -> Option<Message> {
+        let mut command: Option<Message> = None;
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
                 let response = ui.button("⬆").on_hover_text("Parent Folder");
                 if response.clicked() {
-                    command = Some(Command::ParentFolder);
+                    command = Some(Message::ParentFolder);
                 }
             });
 
@@ -194,7 +194,7 @@ impl FileView {
                 .button("⟲")
                 .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
             if response.clicked() {
-                command = Some(Command::Refresh);
+                command = Some(Message::Refresh);
             }
             ui.separator();
             ui.add_sized(
@@ -238,7 +238,7 @@ impl FileView {
                         .checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"))
                         .clicked()
                     {
-                        command = Some(Command::ToggleAutoScroll);
+                        command = Some(Message::ToggleAutoScroll);
                         ui.close_menu();
                     }
                     let title = match self.scroll_speed {
@@ -250,7 +250,7 @@ impl FileView {
 
                     let r = ui.selectable_label(false, title);
                     if r.clicked() {
-                        command = Some(Command::ChangeScrollSpeed);
+                        command = Some(Message::ChangeScrollSpeed);
                         ui.close_menu();
                     }
                 });
@@ -341,7 +341,7 @@ impl FileView {
                                             RichText::new(label).color(text_color),
                                         );
                                         if selectable_label.clicked() {
-                                            command = Some(Command::Select(first + i, false));
+                                            command = Some(Message::Select(first + i, false));
                                         }
                                         if let Some(sel) = self.scroll_pos {
                                             if sel == i {
@@ -351,7 +351,7 @@ impl FileView {
                                         }
 
                                         if selectable_label.double_clicked() {
-                                            command = Some(Command::Open(first + i));
+                                            command = Some(Message::Open(first + i));
                                         }
                                     }
                                 });
@@ -419,55 +419,55 @@ impl FileView {
         });
 
         if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
-            return Some(Command::ParentFolder);
+            return Some(Message::ParentFolder);
         }
 
         if ui.input(|i| i.key_pressed(egui::Key::F1)) {
-            return Some(Command::ShowHelpDialog);
+            return Some(Message::ShowHelpDialog);
         }
 
         if ui.input(|i| i.key_pressed(egui::Key::F2)) {
-            return Some(Command::ToggleAutoScroll);
+            return Some(Message::ToggleAutoScroll);
         }
 
         if ui.input(|i| i.key_pressed(egui::Key::F3)) {
-            return Some(Command::ChangeScrollSpeed);
+            return Some(Message::ChangeScrollSpeed);
         }
 
         if let Some(s) = self.selected_file {
             if ui.input(|i| i.key_pressed(egui::Key::F4)) {
-                return Some(Command::ShowSauce(s));
+                return Some(Message::ShowSauce(s));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
-                command = Some(Command::Select(s.saturating_sub(1), false));
+                command = Some(Message::Select(s.saturating_sub(1), false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
-                command = Some(Command::Select(s.saturating_add(1), false));
+                command = Some(Message::Select(s.saturating_add(1), false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                command = Some(Command::Open(s));
+                command = Some(Message::Open(s));
             }
 
             if !self.files.is_empty() {
                 if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                    command = Some(Command::Select(0, false));
+                    command = Some(Message::Select(0, false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                    command = Some(Command::Select(self.files.len().saturating_sub(1), false));
+                    command = Some(Message::Select(self.files.len().saturating_sub(1), false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
                     let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Command::Select(s.saturating_sub(page_size), false));
+                    command = Some(Message::Select(s.saturating_sub(page_size), false));
                 }
 
                 if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
                     let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                    command = Some(Command::Select(
+                    command = Some(Message::Select(
                         (s.saturating_add(page_size)).min(self.files.len() - 1),
                         false,
                     ));
@@ -480,15 +480,15 @@ impl FileView {
                     || i.key_pressed(egui::Key::PageUp)
                     || i.key_pressed(egui::Key::PageDown)
             }) {
-                command = Some(Command::Select(0, false));
+                command = Some(Message::Select(0, false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                command = Some(Command::Select(0, false));
+                command = Some(Message::Select(0, false));
             }
 
             if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                command = Some(Command::Select(self.files.len().saturating_sub(1), false));
+                command = Some(Message::Select(self.files.len().saturating_sub(1), false));
             }
         }
         command
@@ -498,12 +498,12 @@ impl FileView {
         self.path.clone()
     }
 
-    pub fn set_path(&mut self, path: impl Into<PathBuf>) -> Option<Command> {
+    pub fn set_path(&mut self, path: impl Into<PathBuf>) -> Option<Message> {
         self.path = path.into();
         self.refresh()
     }
 
-    pub fn refresh(&mut self) -> Option<Command> {
+    pub fn refresh(&mut self) -> Option<Message> {
         self.files.clear();
 
         if self.path.is_file() {
@@ -567,7 +567,7 @@ impl FileView {
         if let Some(file) = &self.pre_select_file {
             for (i, entry) in self.files.iter().enumerate() {
                 if entry.path.file_name().unwrap().to_string_lossy() == *file {
-                    return Command::Select(i, false).into();
+                    return Message::Select(i, false).into();
                 }
             }
         }
