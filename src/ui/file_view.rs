@@ -2,6 +2,7 @@ use directories::UserDirs;
 use eframe::egui::{self, Context, RichText};
 use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, RetainedImage, TableBuilder};
+use i18n_embed_fl::fl;
 use icy_engine::SauceData;
 
 use std::{
@@ -85,6 +86,17 @@ impl FileEntry {
         }
         self.path.is_dir()
     }
+
+    fn is_dir_or_archive(&self) -> bool {
+
+        if let Some(ext) = self.path.extension() {
+            if ext.to_string_lossy().to_ascii_lowercase() == "zip" {
+                return true;
+            }
+        }
+
+        self.is_dir()
+    }
 }
 
 pub struct FileView {
@@ -96,6 +108,7 @@ pub struct FileView {
     /// Files in directory.
     pub files: Vec<FileEntry>,
 
+    pub auto_scroll_enabled: bool,
     pub filter: String,
     pre_select_file: Option<String>,
 }
@@ -136,6 +149,7 @@ impl FileView {
             scroll_pos: None,
             files: Vec::new(),
             filter: String::new(),
+            auto_scroll_enabled: true
         }
     }
 
@@ -158,22 +172,47 @@ impl FileView {
                     });
                 }
                 None => {
-                    ui.colored_label(ui.style().visuals.error_fg_color, "Invalid path");
+                    ui.colored_label(ui.style().visuals.error_fg_color, fl!(crate::LANGUAGE_LOADER, "error-invalid-path"));
                 }
             }
-            let response = ui.button("⟲").on_hover_text("Refresh");
+            let response = ui.button("⟲").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
             if response.clicked() {
                 command = Some(Command::Refresh);
             }
             ui.separator();
             ui.add_sized(
                 [250.0, 20.0],
-                TextEdit::singleline(&mut self.filter).hint_text("Filter entries"),
+                TextEdit::singleline(&mut self.filter).hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")),
             );
-            let response = ui.button("🗙").on_hover_text("Reset filter");
+            let response = ui.button("🗙").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
             if response.clicked() {
                 self.filter.clear();
             }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.menu_button("…", |ui| {
+                    let r = ui.hyperlink_to(
+                        fl!(crate::LANGUAGE_LOADER, "menu-item-discuss"),
+                        "https://github.com/mkrueger/icy_view/discussions",
+                    );
+                    if r.clicked() {
+                        ui.close_menu();
+                    }
+                    let r = ui.hyperlink_to(
+                        fl!(crate::LANGUAGE_LOADER, "menu-item-report-bug"),
+                        "https://github.com/mkrueger/icy_view/issues/new",
+                    );
+                    if r.clicked() {
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.checkbox(&mut self.auto_scroll_enabled, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
+                        ui.close_menu();
+                    }
+                });
+            });
+
+
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
@@ -201,19 +240,19 @@ impl FileView {
                 table
                     .header(20.0, |mut header| {
                         header.col(|ui| {
-                            ui.strong("File");
+                            ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-file"));
                         });
                         header.col(|ui| {
-                            ui.strong("Title");
+                            ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-title"));
                         });
                         header.col(|ui| {
-                            ui.strong("Author");
+                            ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-author"));
                         });
                         header.col(|ui| {
-                            ui.strong("Group");
+                            ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-group"));
                         });
                         header.col(|ui| {
-                            ui.strong("Screen mode");
+                            ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
                         });
                     })
                     .body(|mut body| {
@@ -248,14 +287,16 @@ impl FileView {
                                         || ui.is_rect_visible(ui.available_rect_before_wrap())
                                     {
                                         entry.load_sauce();
-                                        let label = match entry.is_dir() {
+                                        let label = match entry.is_dir_or_archive() {
                                             true => "🗀 ",
                                             false => "🗋 ",
                                         }
                                         .to_string()
                                             + get_file_name(&entry.path);
+
                                         let selectable_label =
-                                            ui.selectable_label(is_selected, label);
+                                            ui.selectable_label(is_selected, RichText::new(label)
+                                            .color(text_color));
                                         if selectable_label.clicked() {
                                             command = Some(Command::Select(first + i, false));
                                         }

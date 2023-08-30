@@ -5,6 +5,7 @@ use eframe::{
 };
 
 use egui_extras::RetainedImage;
+use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
@@ -54,6 +55,7 @@ impl App for MainWindow {
         egui::CentralPanel::default()
             .frame(frame_no_margins)
             .show(ctx, |ui| self.paint_main_area(ui));
+        self.in_scroll &= self.file_view.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
@@ -126,10 +128,10 @@ impl MainWindow {
                     }
                 } else {
                     self.error_text =
-                        Some("Should never happen :) - open a bug report!".to_string());
+                        Some(fl!(crate::LANGUAGE_LOADER, "error-never-happens").to_string());
                 }
             } else {
-                ui.centered_and_justified(|ui| ui.heading("Loading image…"));
+                ui.centered_and_justified(|ui| ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image")));
             }
             return;
         }
@@ -171,17 +173,15 @@ impl MainWindow {
                     }
                     ui.add_space(ui.available_height() / 3.0);
                     ui.vertical_centered(|ui| {
-                        ui.heading(format!(
-                            "File {} may not be supported.",
-                            self.file_view.files[self.file_view.selected_file.unwrap()]
-                                .path
-                                .file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                        ));
+                        ui.heading(fl!(crate::LANGUAGE_LOADER, "message-file-not-supported", name=self.file_view.files[self.file_view.selected_file.unwrap()]
+                        .path
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy())
+                    );
                         ui.add_space(8.0);
                         if ui
-                            .button(RichText::heading("Load anyways".into()))
+                            .button(RichText::heading(fl!(crate::LANGUAGE_LOADER, "button-load-anyways").into()))
                             .clicked()
                         {
                             self.handle_command(Some(Command::Select(file, true)));
@@ -190,7 +190,7 @@ impl MainWindow {
                 }
                 None => {
                     ui.centered_and_justified(|ui| {
-                        ui.heading("Here you see nothing until you select something.");
+                        ui.heading(fl!(crate::LANGUAGE_LOADER, "message-empty"));
                     });
                 }
             }
