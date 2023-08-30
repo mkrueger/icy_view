@@ -25,6 +25,7 @@ pub struct MainWindow {
     pub in_scroll: bool,
     cur_scroll_pos: f32,
     vel: f32,
+    drag_started: bool,
 
     pub error_text: Option<String>,
 
@@ -145,6 +146,7 @@ impl MainWindow {
             loaded_buffer: false,
             sauce_dialog: None,
             help_dialog: None,
+            drag_started: false,
             cur_scroll_pos: 0.0,
             vel: 0.0,
             toasts: egui_notify::Toasts::default(),
@@ -218,17 +220,27 @@ impl MainWindow {
 
             // stop scrolling when reached the end.
             if self.in_scroll {
-                let last_scroll_pos = calc.char_height - calc.buffer_char_height;
+                let last_scroll_pos =
+                    calc.char_height - calc.buffer_char_height + calc.scroll_remainder;
                 if last_scroll_pos <= calc.char_scroll_positon / calc.font_height {
                     self.in_scroll = false;
                 }
             }
             self.cur_scroll_pos = calc.char_scroll_positon;
 
-            if response.drag_started() {
-                ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
+            if response.drag_started_by(egui::PointerButton::Primary) {
+                self.drag_started = false;
+                if let Some(mouse_pos) = response.interact_pointer_pos() {
+                    if !calc.scrollbar_rect.contains(mouse_pos) {
+                        self.drag_started = true;
+                        ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
+                    }
+                }
             }
-            if response.dragged() {
+            if response.drag_released_by(egui::PointerButton::Primary) {
+                self.drag_started = false;
+            }
+            if response.dragged_by(egui::PointerButton::Primary) && self.drag_started {
                 ui.input(|input| {
                     self.cur_scroll_pos -= input.pointer.delta().y;
                     self.vel = input.pointer.velocity().y;
