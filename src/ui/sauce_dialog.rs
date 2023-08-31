@@ -55,7 +55,15 @@ impl SauceDialog {
                         );
                         ui.end_row();
 
-                        // TODO: Implement date support.
+                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-date-label"));
+                        });
+                        let t = self.sauce.creation_time.format("%Y-%m-%d").to_string();
+                        ui.add(
+                            egui::TextEdit::singleline(&mut t.as_str())
+                                .char_limit(20),
+                        );
+                        ui.end_row();
                     });
 
                 let mut tmp_str = String::new();
