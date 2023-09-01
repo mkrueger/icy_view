@@ -196,12 +196,19 @@ impl MainWindow {
 
         if self.loaded_buffer {
             let w = (ui.available_width() / 8.0).floor();
-            let scale = (w / self.buffer_view.lock().buf.get_width() as f32).min(2.0);
+            let scalex = (w / self.buffer_view.lock().buf.get_width() as f32).min(2.0);
+
+            let scaley = if self.buffer_view.lock().buf.use_aspect_ratio {
+                scalex * 1.35
+            } else {
+                scalex
+            };
+
             let dt = ui.input(|i| i.unstable_dt);
             let opt = icy_engine_egui::TerminalOptions {
                 focus_lock: false,
                 stick_to_bottom: false,
-                scale: Some(Vec2::new(scale, scale)),
+                scale: Some(Vec2::new(scalex, scaley)),
                 font_extension: icy_engine_egui::FontExtension::Off,
                 use_terminal_height: false,
                 scroll_offset: if self.in_scroll {

@@ -32,6 +32,8 @@ sauce-dialog-author-label=Autor:
 sauce-dialog-group-label=Gruppe:
 sauce-dialog-comments-label=Kommentare:
 sauce-dialog-date-label=Datum:
+sauce-dialog-flags-label=Flags:
+sauce-dialog-font-name=Font:
 
 help-dialog-title=Hilfe
 help-dialog-text=

@@ -397,15 +397,46 @@ impl FileView {
                                         if entry.is_dir() {
                                             ui.label("");
                                         } else if let Some(sauce) = &entry.sauce {
-                                            ui.label(
-                                                RichText::new(format!(
-                                                    "{}x{} {}",
-                                                    sauce.buffer_size.width,
-                                                    sauce.buffer_size.height,
-                                                    if sauce.use_ice { "(ICE)" } else { "" }
-                                                ))
-                                                .color(text_color),
-                                            );
+
+                                            let mut flags: String = String::new();
+                                            if sauce.use_ice {
+                                                flags.push_str("ICE");
+                                            }
+                    
+                                            if sauce.use_letter_spacing {
+                                                if !flags.is_empty() {
+                                                    flags.push(',');
+                                                }
+                                                flags.push_str("9px");
+                                            }
+                    
+                                            if sauce.use_aspect_ratio {
+                                                if !flags.is_empty() {
+                                                    flags.push(',');
+                                                }
+                                                flags.push_str("AR");
+                                            }
+
+                                            if flags.is_empty() {
+                                                ui.label(
+                                                    RichText::new(format!(
+                                                        "{}x{}",
+                                                        sauce.buffer_size.width,
+                                                        sauce.buffer_size.height
+                                                    ))
+                                                    .color(text_color),
+                                                );
+                                            } else {
+                                                ui.label(
+                                                    RichText::new(format!(
+                                                        "{}x{} ({})",
+                                                        sauce.buffer_size.width,
+                                                        sauce.buffer_size.height,
+                                                        flags
+                                                    ))
+                                                    .color(text_color),
+                                                );
+                                            }
                                         } else {
                                             ui.label("");
                                         }

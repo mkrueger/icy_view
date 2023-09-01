@@ -59,11 +59,48 @@ impl SauceDialog {
                             ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-date-label"));
                         });
                         let t = self.sauce.creation_time.format("%Y-%m-%d").to_string();
+                        ui.add(egui::TextEdit::singleline(&mut t.as_str()).char_limit(20));
+                        ui.end_row();
+
+                        if let Some(font) = &self.sauce.font_opt {
+                            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-font-name"));
+                            });                             
+                            ui.add(
+                                egui::TextEdit::singleline(&mut font.as_str())
+                                    .char_limit(20),
+                            );
+                            ui.end_row();
+                        }
+
+                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-flags-label"));
+                        });
+                        let mut flags: String = String::new();
+                        if self.sauce.use_ice {
+                            flags.push_str("ice colors");
+                        }
+
+                        if self.sauce.use_letter_spacing {
+                            if !flags.is_empty() {
+                                flags.push_str(", ");
+                            }
+                            flags.push_str("letter spacing");
+                        }
+
+                        if self.sauce.use_aspect_ratio {
+                            if !flags.is_empty() {
+                                flags.push_str(", ");
+                            }
+                            flags.push_str("aspect ratio");
+                        }
+
                         ui.add(
-                            egui::TextEdit::singleline(&mut t.as_str())
+                            egui::TextEdit::singleline(&mut flags.to_string().as_str())
                                 .char_limit(20),
                         );
                         ui.end_row();
+
                     });
 
                 let mut tmp_str = String::new();
