@@ -24,7 +24,8 @@ pub struct MainWindow {
     pub file_view: FileView,
     pub in_scroll: bool,
     cur_scroll_pos: f32,
-    vel: f32,
+    drag_vel: f32,
+    key_vel: f32,
     drag_started: bool,
 
     pub error_text: Option<String>,
@@ -148,7 +149,8 @@ impl MainWindow {
             help_dialog: None,
             drag_started: false,
             cur_scroll_pos: 0.0,
-            vel: 0.0,
+            drag_vel: 0.0,
+            key_vel: 0.0,
             toasts: egui_notify::Toasts::default(),
         }
     }
@@ -235,6 +237,46 @@ impl MainWindow {
             }
             self.cur_scroll_pos = calc.char_scroll_positon;
 
+
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home)&& i.modifiers.ctrl) {
+                self.cur_scroll_pos = 0.0;
+                self.in_scroll = false;
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::End)&& i.modifiers.ctrl) {
+                self.cur_scroll_pos = f32::MAX;
+                self.in_scroll = false;
+            }
+
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::ArrowUp)&& i.modifiers.ctrl) {
+                self.key_vel = 500.0;
+                self.in_scroll = false;
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)&& i.modifiers.ctrl) {
+                self.key_vel -= 250.0;
+                self.in_scroll = false;
+            }
+
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::PageUp)&& i.modifiers.ctrl) {
+                self.key_vel = 5000.0;
+                self.in_scroll = false;
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::PageDown)&& i.modifiers.ctrl) {
+                self.key_vel -= 2500.0;
+                self.in_scroll = false;
+            }
+            
+            if (self.key_vel - 0.1).abs() > 0.1 {
+                let friction_coeff = 10.0;
+                let dt = ui.input(|i| i.unstable_dt);
+                let friction = friction_coeff * dt;
+                self.key_vel -= friction * self.key_vel;
+                self.cur_scroll_pos -= self.key_vel * dt;
+                ui.ctx().request_repaint();
+            }
+
             if response.drag_started_by(egui::PointerButton::Primary) {
                 self.drag_started = false;
                 if let Some(mouse_pos) = response.interact_pointer_pos() {
@@ -250,17 +292,17 @@ impl MainWindow {
             if response.dragged_by(egui::PointerButton::Primary) && self.drag_started {
                 ui.input(|input| {
                     self.cur_scroll_pos -= input.pointer.delta().y;
-                    self.vel = input.pointer.velocity().y;
+                    self.drag_vel = input.pointer.velocity().y;
+                    self.key_vel = 0.0;
                     self.in_scroll = false;
                 });
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
             } else {
                 let friction_coeff = 10.0;
                 let dt = ui.input(|i| i.unstable_dt);
-
                 let friction = friction_coeff * dt;
-                self.vel -= friction * self.vel;
-                self.cur_scroll_pos -= self.vel * dt;
+                self.drag_vel -= friction * self.drag_vel;
+                self.cur_scroll_pos -= self.drag_vel * dt;
                 ui.ctx().request_repaint();
             }
 

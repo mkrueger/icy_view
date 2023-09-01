@@ -450,7 +450,7 @@ impl FileView {
         });
 
         if ui.is_enabled() {
-            if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
+            if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.alt) {
                 return Some(Message::ParentFolder);
             }
 
@@ -471,11 +471,11 @@ impl FileView {
                     return Some(Message::ShowSauce(s));
                 }
 
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)) && s > 0 {
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)&& i.modifiers.is_none()) && s > 0 {
                     command = Some(Message::Select(s.saturating_sub(1), false));
                 }
 
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)) && s + 1 < self.files.len() {
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)&& i.modifiers.is_none()) && s + 1 < self.files.len() {
                     command = Some(Message::Select(s.saturating_add(1), false));
                 }
 
@@ -484,20 +484,20 @@ impl FileView {
                 }
 
                 if !self.files.is_empty() {
-                    if ui.input(|i| i.key_pressed(egui::Key::Home)) {
+                    if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home)&& i.modifiers.is_none()) {
                         command = Some(Message::Select(0, false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::End)) {
+                    if ui.input(|i| i.key_pressed(egui::Key::End)&& i.modifiers.is_none()) {
                         command = Some(Message::Select(self.files.len().saturating_sub(1), false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::PageUp)) {
+                    if ui.input(|i| i.key_pressed(egui::Key::PageUp)&& i.modifiers.is_none()) {
                         let page_size = (area_res.inner_rect.height() / row_height) as usize;
                         command = Some(Message::Select(s.saturating_sub(page_size), false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::PageDown)) {
+                    if ui.input(|i| i.key_pressed(egui::Key::PageDown)&& i.modifiers.is_none()) {
                         let page_size = (area_res.inner_rect.height() / row_height) as usize;
                         command = Some(Message::Select(
                             (s.saturating_add(page_size)).min(self.files.len() - 1),
