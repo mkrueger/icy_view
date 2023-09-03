@@ -131,7 +131,6 @@ impl MainWindow {
         let mut view = BufferView::new(
             gl,
             glow::NEAREST as i32,
-            icy_engine_egui::FontExtension::Off,
         );
         view.buf.is_terminal_buffer = false;
         view.caret.is_visible = false;
@@ -211,7 +210,6 @@ impl MainWindow {
                 focus_lock: false,
                 stick_to_bottom: false,
                 scale: Some(Vec2::new(scalex, scaley)),
-                font_extension: icy_engine_egui::FontExtension::Off,
                 use_terminal_height: false,
                 scroll_offset: if self.in_scroll {
                     Some(
