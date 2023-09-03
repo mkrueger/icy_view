@@ -397,19 +397,18 @@ impl FileView {
                                         if entry.is_dir() {
                                             ui.label("");
                                         } else if let Some(sauce) = &entry.sauce {
-
                                             let mut flags: String = String::new();
                                             if sauce.use_ice {
                                                 flags.push_str("ICE");
                                             }
-                    
+
                                             if sauce.use_letter_spacing {
                                                 if !flags.is_empty() {
                                                     flags.push(',');
                                                 }
                                                 flags.push_str("9px");
                                             }
-                    
+
                                             if sauce.use_aspect_ratio {
                                                 if !flags.is_empty() {
                                                     flags.push(',');
@@ -471,11 +470,14 @@ impl FileView {
                     return Some(Message::ShowSauce(s));
                 }
 
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp)&& i.modifiers.is_none()) && s > 0 {
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none()) && s > 0
+                {
                     command = Some(Message::Select(s.saturating_sub(1), false));
                 }
 
-                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)&& i.modifiers.is_none()) && s + 1 < self.files.len() {
+                if ui.input(|i| i.key_pressed(egui::Key::ArrowDown) && i.modifiers.is_none())
+                    && s + 1 < self.files.len()
+                {
                     command = Some(Message::Select(s.saturating_add(1), false));
                 }
 
@@ -484,20 +486,22 @@ impl FileView {
                 }
 
                 if !self.files.is_empty() {
-                    if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home)&& i.modifiers.is_none()) {
+                    if ui.input(|i: &egui::InputState| {
+                        i.key_pressed(egui::Key::Home) && i.modifiers.is_none()
+                    }) {
                         command = Some(Message::Select(0, false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::End)&& i.modifiers.is_none()) {
+                    if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none()) {
                         command = Some(Message::Select(self.files.len().saturating_sub(1), false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::PageUp)&& i.modifiers.is_none()) {
+                    if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none()) {
                         let page_size = (area_res.inner_rect.height() / row_height) as usize;
                         command = Some(Message::Select(s.saturating_sub(page_size), false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::PageDown)&& i.modifiers.is_none()) {
+                    if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none()) {
                         let page_size = (area_res.inner_rect.height() / row_height) as usize;
                         command = Some(Message::Select(
                             (s.saturating_add(page_size)).min(self.files.len() - 1),

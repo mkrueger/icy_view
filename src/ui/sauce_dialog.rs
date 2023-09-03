@@ -65,11 +65,8 @@ impl SauceDialog {
                         if let Some(font) = &self.sauce.font_opt {
                             ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                                 ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-font-name"));
-                            });                             
-                            ui.add(
-                                egui::TextEdit::singleline(&mut font.as_str())
-                                    .char_limit(20),
-                            );
+                            });
+                            ui.add(egui::TextEdit::singleline(&mut font.as_str()).char_limit(20));
                             ui.end_row();
                         }
 
@@ -100,7 +97,6 @@ impl SauceDialog {
                                 .char_limit(20),
                         );
                         ui.end_row();
-
                     });
 
                 let mut tmp_str = String::new();

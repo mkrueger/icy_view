@@ -128,12 +128,9 @@ impl MainWindow {
             .gl
             .as_ref()
             .expect("You need to run eframe with the glow backend");
-        let mut view = BufferView::new(
-            gl,
-            glow::NEAREST as i32,
-        );
-        view.buf.is_terminal_buffer = false;
-        view.caret.is_visible = false;
+        let mut view = BufferView::new(gl, glow::NEAREST as i32);
+        view.get_buffer_mut().is_terminal_buffer = false;
+        view.get_caret_mut().is_visible = false;
 
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
@@ -197,9 +194,9 @@ impl MainWindow {
 
         if self.loaded_buffer {
             let w = (ui.available_width() / 8.0).floor();
-            let scalex = (w / self.buffer_view.lock().buf.get_width() as f32).min(2.0);
+            let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
 
-            let scaley = if self.buffer_view.lock().buf.use_aspect_ratio {
+            let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio {
                 scalex * 1.35
             } else {
                 scalex
@@ -235,37 +232,39 @@ impl MainWindow {
             }
             self.cur_scroll_pos = calc.char_scroll_positon;
 
-
-            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home)&& i.modifiers.ctrl) {
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home) && i.modifiers.ctrl) {
                 self.cur_scroll_pos = 0.0;
                 self.in_scroll = false;
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::End)&& i.modifiers.ctrl) {
+            if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.ctrl) {
                 self.cur_scroll_pos = f32::MAX;
                 self.in_scroll = false;
             }
 
-            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::ArrowUp)&& i.modifiers.ctrl) {
+            if ui
+                .input(|i: &egui::InputState| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.ctrl)
+            {
                 self.key_vel = 500.0;
                 self.in_scroll = false;
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::ArrowDown)&& i.modifiers.ctrl) {
+            if ui.input(|i| i.key_pressed(egui::Key::ArrowDown) && i.modifiers.ctrl) {
                 self.key_vel -= 250.0;
                 self.in_scroll = false;
             }
 
-            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::PageUp)&& i.modifiers.ctrl) {
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl)
+            {
                 self.key_vel = 5000.0;
                 self.in_scroll = false;
             }
 
-            if ui.input(|i| i.key_pressed(egui::Key::PageDown)&& i.modifiers.ctrl) {
+            if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.ctrl) {
                 self.key_vel -= 2500.0;
                 self.in_scroll = false;
             }
-            
+
             if (self.key_vel - 0.1).abs() > 0.1 {
                 let friction_coeff = 10.0;
                 let dt = ui.input(|i| i.unstable_dt);
