@@ -196,7 +196,7 @@ impl MainWindow {
             let w = (ui.available_width() / 8.0).floor();
             let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
 
-            let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio {
+            let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
                 scalex * 1.35
             } else {
                 scalex
