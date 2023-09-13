@@ -1,5 +1,5 @@
 use directories::UserDirs;
-use eframe::egui::{self, Context, RichText};
+use eframe::egui::{self, RichText};
 use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, RetainedImage, TableBuilder};
 use i18n_embed_fl::fl;
@@ -16,6 +16,7 @@ use std::{
 pub enum Message {
     Select(usize, bool),
     Open(usize),
+    Cancel,
     Refresh,
     ParentFolder,
     ToggleAutoScroll,
@@ -165,7 +166,7 @@ impl FileView {
         }
     }
 
-    pub(crate) fn show_ui(&mut self, ctx: &Context, ui: &mut Ui) -> Option<Message> {
+    pub(crate) fn show_ui(&mut self, ui: &mut Ui, file_chooser: bool) -> Option<Message> {
         let mut command: Option<Message> = None;
         ui.add_space(4.0);
         ui.horizontal(|ui| {
@@ -209,52 +210,69 @@ impl FileView {
                 self.filter.clear();
             }
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.menu_button("…", |ui| {
-                    let r = ui.hyperlink_to(
-                        fl!(crate::LANGUAGE_LOADER, "menu-item-discuss"),
-                        "https://github.com/mkrueger/icy_view/discussions",
-                    );
-                    if r.clicked() {
-                        ui.close_menu();
-                    }
-                    let r = ui.hyperlink_to(
-                        fl!(crate::LANGUAGE_LOADER, "menu-item-report-bug"),
-                        "https://github.com/mkrueger/icy_view/issues/new",
-                    );
-                    if r.clicked() {
-                        ui.close_menu();
-                    }
-                    let r = ui.hyperlink_to(
-                        fl!(crate::LANGUAGE_LOADER, "menu-item-check-releases"),
-                        "https://github.com/mkrueger/icy_view/releases/latest",
-                    );
-                    if r.clicked() {
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    let mut b = self.auto_scroll_enabled;
-                    if ui
-                        .checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"))
-                        .clicked()
-                    {
-                        command = Some(Message::ToggleAutoScroll);
-                        ui.close_menu();
-                    }
-                    let title = match self.scroll_speed {
-                        2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
-                        0 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium"),
-                        1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
-                        _ => panic!(),
-                    };
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if file_chooser {
 
-                    let r = ui.selectable_label(false, title);
-                    if r.clicked() {
-                        command = Some(Message::ChangeScrollSpeed);
-                        ui.close_menu();
-                    }
+                    ui.horizontal(|ui|  {
+                        if ui.button(fl!(crate::LANGUAGE_LOADER, "button-open")).clicked() {
+                            if let Some(sel) = self.selected_file { 
+                                command = Some(Message::Open(sel));
+
+                            }
+                        }
+                        if ui.button(fl!(crate::LANGUAGE_LOADER, "button-cancel")).clicked() {
+                            command = Some(Message::Cancel);
+                        }
+                    });
+                }  else {
+
+                    ui.menu_button("…", |ui| {
+                        let r = ui.hyperlink_to(
+                            fl!(crate::LANGUAGE_LOADER, "menu-item-discuss"),
+                            "https://github.com/mkrueger/icy_view/discussions",
+                        );
+                        if r.clicked() {
+                            ui.close_menu();
+                        }
+                        let r = ui.hyperlink_to(
+                            fl!(crate::LANGUAGE_LOADER, "menu-item-report-bug"),
+                            "https://github.com/mkrueger/icy_view/issues/new",
+                        );
+                        if r.clicked() {
+                            ui.close_menu();
+                        }
+                        let r = ui.hyperlink_to(
+                            fl!(crate::LANGUAGE_LOADER, "menu-item-check-releases"),
+                            "https://github.com/mkrueger/icy_view/releases/latest",
+                        );
+                        if r.clicked() {
+                            ui.close_menu();
+                        }
+                        ui.separator();
+                        let mut b = self.auto_scroll_enabled;
+                        if ui
+                            .checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"))
+                            .clicked()
+                        {
+                            command = Some(Message::ToggleAutoScroll);
+                            ui.close_menu();
+                        }
+                        let title = match self.scroll_speed {
+                            2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
+                            0 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium"),
+                            1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
+                            _ => panic!(),
+                        };
+
+                        let r = ui.selectable_label(false, title);
+                        if r.clicked() {
+                            command = Some(Message::ChangeScrollSpeed);
+                            ui.close_menu();
+                        }
+                    });
+                }
                 });
-            });
+
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
@@ -265,6 +283,8 @@ impl FileView {
         let area = ScrollArea::vertical();
         // let row_height = ui.text_style_height(&egui::TextStyle::Body);
         let row_height = ui.text_style_height(&egui::TextStyle::Body);
+        let strong_color = ui.style().visuals.strong_text_color();
+        let text_color  = ui.style().visuals.text_color();
 
         let area_res = area.show(ui, |ui| {
             ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
@@ -318,9 +338,9 @@ impl FileView {
                         for (i, entry) in f.enumerate() {
                             let is_selected = Some(first + i) == self.selected_file;
                             let text_color = if is_selected {
-                                ctx.style().visuals.strong_text_color()
+                                strong_color
                             } else {
-                                ctx.style().visuals.text_color()
+                                text_color
                             };
 
                             body.row(row_height, |mut row| {

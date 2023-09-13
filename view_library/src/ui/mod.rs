@@ -9,9 +9,7 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, sync::Arc, thread::JoinHandle, time::Duration};
-
-use crate::Cli;
+use std::{io, sync::Arc, thread::JoinHandle, time::Duration, path::PathBuf};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -38,8 +36,10 @@ pub struct MainWindow {
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
     help_dialog: Option<help_dialog::HelpDialog>,
-
+    
     toasts: egui_notify::Toasts,
+    is_closed: bool,
+    pub opened_file: Option<FileEntry>
 }
 const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
 const EXT_WHITE_LIST: [&str; 13] = [
@@ -56,7 +56,7 @@ impl App for MainWindow {
             .resizable(true)
             .show(ctx, |ui| {
                 ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
-                let command = self.file_view.show_ui(ctx, ui);
+                let command = self.file_view.show_ui(ui, false);
                 self.handle_command(command);
             });
 
@@ -123,18 +123,14 @@ impl App for MainWindow {
 }
 
 impl MainWindow {
-    pub fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
-        let gl = cc
-            .gl
-            .as_ref()
-            .expect("You need to run eframe with the glow backend");
-        let mut view = BufferView::new(gl, glow::NEAREST as i32);
+    pub fn new(gl: &Arc<glow::Context>, initial_path: Option<PathBuf>) -> Self {
+        let mut view = BufferView::new(&gl, glow::NEAREST as i32);
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().is_visible = false;
 
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
-            file_view: FileView::new(cli.path),
+            file_view: FileView::new(initial_path),
             in_scroll: false,
             image_loading_thread: None,
             retained_image: None,
@@ -148,7 +144,42 @@ impl MainWindow {
             drag_vel: 0.0,
             key_vel: 0.0,
             toasts: egui_notify::Toasts::default(),
+            opened_file: None,
+            is_closed: false
         }
+    }
+
+    pub fn show_file_chooser(&mut self, ctx: &Context) -> bool {
+        self.is_closed = false;
+        self.opened_file = None;
+        egui::TopBottomPanel::bottom("bottom_panel")
+            //   egui::SidePanel::left("left_panel")
+            .exact_height(300.)
+            .resizable(true)
+            .show(ctx, |ui| {
+                let command = self.file_view.show_ui(ui, true);
+                self.handle_command(command);
+            });
+
+        let frame_no_margins = egui::containers::Frame::none()
+            .outer_margin(egui::style::Margin::same(0.0))
+            .inner_margin(egui::style::Margin::same(0.0))
+            .fill(Color32::BLACK);
+        egui::CentralPanel::default()
+            .frame(frame_no_margins)
+            .show(ctx, |ui| {
+                self.paint_main_area(ui)
+        });
+        self.in_scroll &= self.file_view.auto_scroll_enabled;
+        if self.in_scroll {
+            //   ctx.request_repaint_after(Duration::from_millis(10));
+            ctx.request_repaint();
+        } else {
+            ctx.request_repaint_after(Duration::from_millis(150));
+        }
+
+        self.toasts.show(ctx);
+        self.is_closed
     }
 
     fn paint_main_area(&mut self, ui: &mut egui::Ui) {
@@ -348,7 +379,7 @@ impl MainWindow {
 
         let open_path = if self.file_view.files[file].is_file() {
             if let Some(ext) = self.file_view.files[file].path.extension() {
-                ext == "zip"
+                ext == "zip" 
             } else {
                 false
             }
@@ -434,11 +465,10 @@ impl MainWindow {
                     self.file_view.refresh();
                 }
                 Message::Open(file) => {
-                    if self.open_selected(file) && !self.file_view.files.is_empty() {
-                        self.file_view.selected_file = Some(0);
-                        self.file_view.scroll_pos = Some(0);
-                        self.view_selected(file, false);
-                    }
+                    self.is_closed = !self.open(file);
+                }
+                Message::Cancel => {
+                    self.is_closed = true;
                 }
                 Message::ParentFolder => {
                     let mut p = self.file_view.get_path();
@@ -496,6 +526,22 @@ impl MainWindow {
                     }
                 }
             }
+        }
+    }
+
+    fn open(&mut self, file: usize) -> bool {
+        if self.open_selected(file) && !self.file_view.files.is_empty() {
+            self.file_view.selected_file = Some(0);
+            self.file_view.scroll_pos = Some(0);
+            self.view_selected(file, false);
+            true
+        } else { 
+
+            if let Some(file) = self.file_view.files.get(file) {
+                self.opened_file = Some(file.clone());
+            }
+
+            false
         }
     }
 }

@@ -21,6 +21,8 @@ message-loading-image=Bild wird geladen…
 message-file-not-supported=Die Datei { $name } wird nicht unterstützt.
 button-load-anyways=Trotzdem laden
 button-ok=Ok
+button-cancel=Cancel
+button-open=Open
 message-empty=Hier gibt es nichts zu sehen, bis etwas ausgewählt wurde.
 
 error-invalid-path=Ungültiger Pfad
