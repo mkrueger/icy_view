@@ -42,8 +42,8 @@ pub struct MainWindow {
     pub opened_file: Option<FileEntry>
 }
 const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
-const EXT_WHITE_LIST: [&str; 13] = [
-    "bin", "xb", "adf", "idf", "tnd", "ans", "ice", "avt", "pcb", "seq", "asc", "diz", "nfo",
+const EXT_WHITE_LIST: [&str; 3] = [
+   "seq", "diz", "nfo",
 ];
 
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
@@ -421,6 +421,7 @@ impl MainWindow {
             }
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
+                || icy_engine::FORMATS.iter().any(|f| f.get_file_extension().to_ascii_lowercase() == ext.as_str())
                 || !EXT_BLACK_LIST.contains(&ext.as_str()) && !is_binary(entry)
             {
                 match entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
