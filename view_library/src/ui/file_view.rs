@@ -180,8 +180,9 @@ impl FileView {
             match self.path.to_str() {
                 Some(path) => {
                     let mut path_edit = path.to_string();
+                    let w = ui.available_width() / 2.0;
                     ui.add_enabled_ui(false, |ui| {
-                        ui.add_sized([250.0, 20.0], TextEdit::singleline(&mut path_edit));
+                        ui.add_sized([w, 20.0], TextEdit::singleline(&mut path_edit));
                     });
                 }
                 None => {
