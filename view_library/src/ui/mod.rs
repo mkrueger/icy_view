@@ -548,7 +548,7 @@ impl MainWindow {
 }
 
 fn is_binary(file_entry: &FileEntry) -> bool {
-    file_entry
+    if let Err(err) = file_entry
         .get_data(|_, data| {
             for i in data.iter().take(500) {
                 if i == &0 || i == &255 {
@@ -556,6 +556,8 @@ fn is_binary(file_entry: &FileEntry) -> bool {
                 }
             }
             false
-        })
-        .unwrap()
+        }) {
+            log::warn!("Error while checking if file is binary: {}", err);
+    }
+    return true;
 }
