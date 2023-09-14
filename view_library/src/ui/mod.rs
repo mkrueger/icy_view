@@ -343,15 +343,19 @@ impl MainWindow {
                     }
                     ui.add_space(ui.available_height() / 3.0);
                     ui.vertical_centered(|ui| {
-                        ui.heading(fl!(
-                            crate::LANGUAGE_LOADER,
-                            "message-file-not-supported",
-                            name = self.file_view.files[self.file_view.selected_file.unwrap()]
-                                .path
-                                .file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                        ));
+                        if let Some(idx) = self.file_view.selected_file {
+                            if let Some(file_name) = self.file_view.files[idx]
+                            .path
+                            .file_name() { 
+                                ui.heading(fl!(
+                                    crate::LANGUAGE_LOADER,
+                                    "message-file-not-supported",
+                                    name = file_name
+                                        .to_string_lossy()
+                                ));
+                            }
+                        }
+
                         ui.add_space(8.0);
                         if ui
                             .button(RichText::heading(

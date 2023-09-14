@@ -624,8 +624,10 @@ impl FileView {
 
         if let Some(file) = &self.pre_select_file {
             for (i, entry) in self.files.iter().enumerate() {
-                if entry.path.file_name().unwrap().to_string_lossy() == *file {
-                    return Message::Select(i, false).into();
+                if let Some(file_name) = entry.path.file_name() {
+                    if file_name.to_string_lossy() == *file {
+                        return Message::Select(i, false).into();
+                    }
                 }
             }
         }
