@@ -319,9 +319,8 @@ impl FileView {
                         });
                     })
                     .body(|mut body| {
-                        let first = 0;
                         let filter = self.filter.to_lowercase();
-                        let f = self.files.iter_mut().filter(|p| {
+                        let filtered_entries = self.files.iter_mut().enumerate().filter(|(_, p)| {
                             if filter.is_empty() {
                                 return true;
                             }
@@ -336,8 +335,8 @@ impl FileView {
                             p.path.to_string_lossy().to_lowercase().contains(&filter)
                         });
 
-                        for (i, entry) in f.enumerate() {
-                            let is_selected = Some(first + i) == self.selected_file;
+                        for (real_idx, entry) in filtered_entries {
+                            let is_selected = Some(real_idx) == self.selected_file;
                             let text_color = if is_selected {
                                 strong_color
                             } else {
@@ -362,17 +361,17 @@ impl FileView {
                                             RichText::new(label).color(text_color),
                                         );
                                         if selectable_label.clicked() {
-                                            command = Some(Message::Select(first + i, false));
+                                            command = Some(Message::Select(real_idx, false));
                                         }
                                         if let Some(sel) = self.scroll_pos {
-                                            if sel == i {
+                                            if sel == real_idx {
                                                 ui.scroll_to_rect(selectable_label.rect, None);
                                                 self.scroll_pos = None;
                                             }
                                         }
 
                                         if selectable_label.double_clicked() {
-                                            command = Some(Message::Open(first + i));
+                                            command = Some(Message::Open(real_idx));
                                         }
                                     }
                                 });
