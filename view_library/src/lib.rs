@@ -18,4 +18,3 @@ pub static LANGUAGE_LOADER: Lazy<FluentLanguageLoader> = Lazy::new(|| {
     let _result = i18n_embed::select(&loader, &Localizations, &requested_languages);
     loader
 });
-   

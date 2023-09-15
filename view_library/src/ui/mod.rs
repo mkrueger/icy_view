@@ -9,7 +9,7 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, sync::Arc, thread::JoinHandle, time::Duration, path::PathBuf};
+use std::{io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -36,15 +36,13 @@ pub struct MainWindow {
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
     help_dialog: Option<help_dialog::HelpDialog>,
-    
+
     toasts: egui_notify::Toasts,
     is_closed: bool,
-    pub opened_file: Option<FileEntry>
+    pub opened_file: Option<FileEntry>,
 }
 const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
-const EXT_WHITE_LIST: [&str; 3] = [
-   "seq", "diz", "nfo",
-];
+const EXT_WHITE_LIST: [&str; 3] = ["seq", "diz", "nfo"];
 
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
 
@@ -145,16 +143,17 @@ impl MainWindow {
             key_vel: 0.0,
             toasts: egui_notify::Toasts::default(),
             opened_file: None,
-            is_closed: false
+            is_closed: false,
         }
     }
 
     pub fn show_file_chooser(&mut self, ctx: &Context) -> bool {
         self.is_closed = false;
         self.opened_file = None;
-        egui::TopBottomPanel::bottom("bottom_panel")
+        egui::SidePanel::left("bottom_panel")
+            .default_width(ctx.available_rect().width() * 3.0 / 2.0)
             //   egui::SidePanel::left("left_panel")
-            .exact_height(300.)
+            //            .exact_height(300.)
             .resizable(true)
             .show(ctx, |ui| {
                 let command = self.file_view.show_ui(ui, true);
@@ -167,9 +166,7 @@ impl MainWindow {
             .fill(Color32::BLACK);
         egui::CentralPanel::default()
             .frame(frame_no_margins)
-            .show(ctx, |ui| {
-                self.paint_main_area(ui)
-        });
+            .show(ctx, |ui| self.paint_main_area(ui));
         self.in_scroll &= self.file_view.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
@@ -344,14 +341,11 @@ impl MainWindow {
                     ui.add_space(ui.available_height() / 3.0);
                     ui.vertical_centered(|ui| {
                         if let Some(idx) = self.file_view.selected_file {
-                            if let Some(file_name) = self.file_view.files[idx]
-                            .path
-                            .file_name() { 
+                            if let Some(file_name) = self.file_view.files[idx].path.file_name() {
                                 ui.heading(fl!(
                                     crate::LANGUAGE_LOADER,
                                     "message-file-not-supported",
-                                    name = file_name
-                                        .to_string_lossy()
+                                    name = file_name.to_string_lossy()
                                 ));
                             }
                         }
@@ -383,7 +377,7 @@ impl MainWindow {
 
         let open_path = if self.file_view.files[file].is_file() {
             if let Some(ext) = self.file_view.files[file].path.extension() {
-                ext == "zip" 
+                ext == "zip"
             } else {
                 false
             }
@@ -425,7 +419,9 @@ impl MainWindow {
             }
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
-                || icy_engine::FORMATS.iter().any(|f| f.get_file_extension().to_ascii_lowercase() == ext.as_str())
+                || icy_engine::FORMATS
+                    .iter()
+                    .any(|f| f.get_file_extension().to_ascii_lowercase() == ext.as_str())
                 || !EXT_BLACK_LIST.contains(&ext.as_str()) && !is_binary(entry)
             {
                 match entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
@@ -540,8 +536,7 @@ impl MainWindow {
             self.file_view.scroll_pos = Some(0);
             self.view_selected(file, false);
             true
-        } else { 
-
+        } else {
             if let Some(file) = self.file_view.files.get(file) {
                 self.opened_file = Some(file.clone());
             }
@@ -552,16 +547,15 @@ impl MainWindow {
 }
 
 fn is_binary(file_entry: &FileEntry) -> bool {
-    if let Err(err) = file_entry
-        .get_data(|_, data| {
-            for i in data.iter().take(500) {
-                if i == &0 || i == &255 {
-                    return true;
-                }
+    if let Err(err) = file_entry.get_data(|_, data| {
+        for i in data.iter().take(500) {
+            if i == &0 || i == &255 {
+                return true;
             }
-            false
-        }) {
-            log::warn!("Error while checking if file is binary: {}", err);
+        }
+        false
+    }) {
+        log::warn!("Error while checking if file is binary: {}", err);
     }
     return true;
 }
