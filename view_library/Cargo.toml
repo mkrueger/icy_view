@@ -24,7 +24,7 @@ egui-modal = "0.2.4"
 egui-notify = "0.9.0"
 
 image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
-#icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
-#icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
-icy_engine = { path ="../../icy_engine" }
-icy_engine_egui = { path ="../../icy_engine_egui" }
+icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
+icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
+#icy_engine = { path ="../../icy_engine" }
+#icy_engine_egui = { path ="../../icy_engine_egui" }
