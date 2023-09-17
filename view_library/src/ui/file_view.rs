@@ -1,5 +1,5 @@
 use directories::UserDirs;
-use eframe::egui::{self, Layout, RichText, TopBottomPanel};
+use eframe::{egui::{self, Layout, RichText, TopBottomPanel, Sense, WidgetText}, epaint::{Rounding, FontId, FontFamily}};
 use egui::{ScrollArea, TextEdit, Ui};
 use egui_extras::{Column, RetainedImage, TableBuilder};
 use i18n_embed_fl::fl;
@@ -10,7 +10,7 @@ use std::{
     fs::{self, File},
     io::{self, Error, Read},
     path::{Path, PathBuf},
-    thread::{self, JoinHandle},
+    thread::{self, JoinHandle}, ops::Index,
 };
 
 pub enum Message {
@@ -168,394 +168,333 @@ impl FileView {
 
     pub(crate) fn show_ui(&mut self, ui: &mut Ui, file_chooser: bool) -> Option<Message> {
         let mut command: Option<Message> = None;
-        TopBottomPanel::top("file_chooser_top_panel")
-            .exact_height(24.0)
-            .show_inside(ui, |ui| {
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
-                        let response = ui.button("⬆").on_hover_text("Parent Folder");
-                        if response.clicked() {
-                            command = Some(Message::ParentFolder);
-                        }
-                    });
-
-                    match self.path.to_str() {
-                        Some(path) => {
-                            let mut path_edit = path.to_string();
-                            let w = ui.available_width() / 2.0;
-                            if !file_chooser {
-                                ui.add_enabled_ui(false, |ui| {
-                                    ui.add_sized([w, 20.0], TextEdit::singleline(&mut path_edit));
-                                });
-                            } else {
-                                let w = ui.available_width() - 32.0;
-                                ui.add_enabled_ui(false, |ui| {
-                                    ui.add_sized([w, 20.0], TextEdit::singleline(&mut path_edit));
-                                });
-                            }
-                        }
-                        None => {
-                            ui.colored_label(
-                                ui.style().visuals.error_fg_color,
-                                fl!(crate::LANGUAGE_LOADER, "error-invalid-path"),
-                            );
-                        }
-                    }
-                    let response = ui
-                        .button("⟲")
-                        .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
-                    if response.clicked() {
-                        command = Some(Message::Refresh);
-                    }
-                    if !file_chooser {
-                        ui.separator();
-                        ui.add_sized(
-                            [250.0, 20.0],
-                            TextEdit::singleline(&mut self.filter)
-                                .hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")),
-                        );
-                        let response = ui.button("🗙").on_hover_text(fl!(
-                            crate::LANGUAGE_LOADER,
-                            "tooltip-reset-filter-button"
-                        ));
-                        if response.clicked() {
-                            self.filter.clear();
-                        }
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.menu_button("…", |ui| {
-                                let r = ui.hyperlink_to(
-                                    fl!(crate::LANGUAGE_LOADER, "menu-item-discuss"),
-                                    "https://github.com/mkrueger/icy_view/discussions",
-                                );
-                                if r.clicked() {
-                                    ui.close_menu();
-                                }
-                                let r = ui.hyperlink_to(
-                                    fl!(crate::LANGUAGE_LOADER, "menu-item-report-bug"),
-                                    "https://github.com/mkrueger/icy_view/issues/new",
-                                );
-                                if r.clicked() {
-                                    ui.close_menu();
-                                }
-                                let r = ui.hyperlink_to(
-                                    fl!(crate::LANGUAGE_LOADER, "menu-item-check-releases"),
-                                    "https://github.com/mkrueger/icy_view/releases/latest",
-                                );
-                                if r.clicked() {
-                                    ui.close_menu();
-                                }
-                                ui.separator();
-                                let mut b = self.auto_scroll_enabled;
-                                if ui
-                                    .checkbox(
-                                        &mut b,
-                                        fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"),
-                                    )
-                                    .clicked()
-                                {
-                                    command = Some(Message::ToggleAutoScroll);
-                                    ui.close_menu();
-                                }
-                                let title = match self.scroll_speed {
-                                    2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
-                                    0 => {
-                                        fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium")
-                                    }
-                                    1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
-                                    _ => panic!(),
-                                };
-
-                                let r = ui.selectable_label(false, title);
-                                if r.clicked() {
-                                    command = Some(Message::ChangeScrollSpeed);
-                                    ui.close_menu();
-                                }
-                            });
-                        });
-                    }
-                });
-                ui.add_space(ui.spacing().item_spacing.y);
-            });
-
-        if file_chooser {
-            TopBottomPanel::bottom("file_chooser_bottom_panel")
-                .exact_height(32.0)
-                .show_inside(ui, |ui| {
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        ui.add_sized(
-                            [250.0, 20.0],
-                            TextEdit::singleline(&mut self.filter)
-                                .hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")),
-                        );
-                        let response = ui.button("🗙").on_hover_text(fl!(
-                            crate::LANGUAGE_LOADER,
-                            "tooltip-reset-filter-button"
-                        ));
-                        if response.clicked() {
-                            self.filter.clear();
-                        }
-                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui
-                                .button(fl!(crate::LANGUAGE_LOADER, "button-open"))
-                                .clicked()
-                            {
-                                if let Some(sel) = self.selected_file {
-                                    command = Some(Message::Open(sel));
-                                }
-                            }
-                            if ui
-                                .button(fl!(crate::LANGUAGE_LOADER, "button-cancel"))
-                                .clicked()
-                            {
-                                command = Some(Message::Cancel);
-                            }
-                        });
-                    });
-                });
-        }
-
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            if self.selected_file.is_none() && !self.files.is_empty() {
-                //  command = Some(Command::Select(0));
+        ui.add_space(4.0);
+     
+        ui.horizontal(|ui| {
+            ui.add(TextEdit::singleline(&mut self.filter).hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text")).desired_width(f32::INFINITY));
+            let response = ui.button("🗙").on_hover_text(fl!(
+                crate::LANGUAGE_LOADER,
+                "tooltip-reset-filter-button"
+            ));
+            if response.clicked() {
+                self.filter.clear();
             }
+        });
 
-            let area = ScrollArea::vertical();
-            // let row_height = ui.text_style_height(&egui::TextStyle::Body);
-            let row_height = ui.text_style_height(&egui::TextStyle::Body);
-            let strong_color = ui.style().visuals.strong_text_color();
-            let text_color = ui.style().visuals.text_color();
-
-            let area_res = area.show(ui, |ui| {
-                ui.with_layout(ui.layout().with_cross_justify(true), |ui| {
-                    let mut table = TableBuilder::new(ui)
-                        .striped(true)
-                        .resizable(true)
-                        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                        .column(Column::auto())
-                        .column(Column::auto());
-
-                    if !file_chooser {
-                        table = table.column(Column::auto()).column(Column::auto());
-                    }
-
-                    table = table.column(Column::remainder()).min_scrolled_height(0.0);
-
-                    table
-                        .header(20.0, |mut header| {
-                            header.col(|ui| {
-                                ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-file"));
-                            });
-                            header.col(|ui| {
-                                ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-title"));
-                            });
-                            header.col(|ui| {
-                                ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-author"));
-                            });
-                            if !file_chooser {
-                                header.col(|ui| {
-                                    ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-group"));
-                                });
-                                header.col(|ui| {
-                                    ui.strong(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
-                                });
-                            }
-                        })
-                        .body(|mut body| {
-                            let filter = self.filter.to_lowercase();
-                            let filtered_entries =
-                                self.files.iter_mut().enumerate().filter(|(_, p)| {
-                                    if filter.is_empty() {
-                                        return true;
-                                    }
-                                    if let Some(sauce) = &p.sauce {
-                                        if sauce.title.to_string().to_lowercase().contains(&filter)
-                                            || sauce
-                                                .group
-                                                .to_string()
-                                                .to_lowercase()
-                                                .contains(&filter)
-                                            || sauce
-                                                .author
-                                                .to_string()
-                                                .to_lowercase()
-                                                .contains(&filter)
-                                        {
-                                            return true;
-                                        }
-                                    }
-                                    p.path.to_string_lossy().to_lowercase().contains(&filter)
-                                });
-
-                            for (real_idx, entry) in filtered_entries {
-                                let is_selected = Some(real_idx) == self.selected_file;
-                                let text_color = if is_selected {
-                                    strong_color
-                                } else {
-                                    text_color
-                                };
-
-                                body.row(row_height, |mut row| {
-                                    row.col(|ui| {
-                                        if is_selected
-                                            || ui.is_rect_visible(ui.available_rect_before_wrap())
-                                        {
-                                            entry.load_sauce();
-                                            let label = match entry.is_dir_or_archive() {
-                                                true => "🗀 ",
-                                                false => "🗋 ",
-                                            }
-                                            .to_string()
-                                                + get_file_name(&entry.path);
-
-                                            let selectable_label = ui.selectable_label(
-                                                is_selected,
-                                                RichText::new(label).color(text_color),
-                                            );
-                                            if selectable_label.clicked() {
-                                                command = Some(Message::Select(real_idx, false));
-                                            }
-                                            if let Some(sel) = self.scroll_pos {
-                                                if sel == real_idx {
-                                                    ui.scroll_to_rect(selectable_label.rect, None);
-                                                    self.scroll_pos = None;
-                                                }
-                                            }
-
-                                            if selectable_label.double_clicked() {
-                                                command = Some(Message::Open(real_idx));
-                                            }
-                                        }
-                                    });
-
-                                    row.col(|ui| {
-                                        if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                            if let Some(sauce) = &entry.sauce {
-                                                ui.label(
-                                                    RichText::new(sauce.title.to_string())
-                                                        .color(text_color),
-                                                );
-                                            } else {
-                                                ui.label("");
-                                            }
-                                        }
-                                    });
-                                    row.col(|ui| {
-                                        if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                            if let Some(sauce) = &entry.sauce {
-                                                ui.label(
-                                                    RichText::new(sauce.author.to_string())
-                                                        .color(text_color),
-                                                );
-                                            } else {
-                                                ui.label("");
-                                            }
-                                        }
-                                    });
-                                    if !file_chooser {
-                                        row.col(|ui| {
-                                            if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                                if let Some(sauce) = &entry.sauce {
-                                                    ui.label(
-                                                        RichText::new(sauce.group.to_string())
-                                                            .color(text_color),
-                                                    );
-                                                } else {
-                                                    ui.label("");
-                                                }
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            if ui.is_rect_visible(ui.available_rect_before_wrap()) {
-                                                if entry.is_dir() {
-                                                    ui.label("");
-                                                } else if let Some(sauce) = &entry.sauce {
-                                                    let mut flags: String = String::new();
-                                                    if sauce.use_ice {
-                                                        flags.push_str("ICE");
-                                                    }
-
-                                                    if sauce.use_letter_spacing {
-                                                        if !flags.is_empty() {
-                                                            flags.push(',');
-                                                        }
-                                                        flags.push_str("9px");
-                                                    }
-
-                                                    if sauce.use_aspect_ratio {
-                                                        if !flags.is_empty() {
-                                                            flags.push(',');
-                                                        }
-                                                        flags.push_str("AR");
-                                                    }
-
-                                                    if flags.is_empty() {
-                                                        ui.label(
-                                                            RichText::new(format!(
-                                                                "{}x{}",
-                                                                sauce.buffer_size.width,
-                                                                sauce.buffer_size.height
-                                                            ))
-                                                            .color(text_color),
-                                                        );
-                                                    } else {
-                                                        ui.label(
-                                                            RichText::new(format!(
-                                                                "{}x{} ({})",
-                                                                sauce.buffer_size.width,
-                                                                sauce.buffer_size.height,
-                                                                flags
-                                                            ))
-                                                            .color(text_color),
-                                                        );
-                                                    }
-                                                } else {
-                                                    ui.label("");
-                                                }
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                })
-                .response
-            });
-
-            if ui.is_enabled() {
-                if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.alt) {
+        ui.horizontal(|ui| {
+            match self.path.to_str() {
+                Some(path) => {
+                    let mut path_edit = path.to_string();
+                    ui.add(TextEdit::singleline(&mut path_edit).desired_width(f32::INFINITY));
+                }
+                None => {
+                    ui.colored_label(
+                        ui.style().visuals.error_fg_color,
+                        fl!(crate::LANGUAGE_LOADER, "error-invalid-path"),
+                    );
+                }
+            }
+             
+            ui.add_enabled_ui(self.path.parent().is_some(), |ui| {
+                let response = ui.button("⬆").on_hover_text("Parent Folder");
+                if response.clicked() {
                     command = Some(Message::ParentFolder);
                 }
-
-                if ui.input(|i| i.key_pressed(egui::Key::F1)) {
-                    command = Some(Message::ShowHelpDialog);
+            });
+            
+            let response = ui
+            .button("⟲")
+            .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
+            if response.clicked() {
+                command = Some(Message::Refresh);
+            }
+            
+            ui.menu_button("…", |ui| {
+                let r = ui.hyperlink_to(
+                    fl!(crate::LANGUAGE_LOADER, "menu-item-discuss"),
+                    "https://github.com/mkrueger/icy_view/discussions",
+                );
+                if r.clicked() {
+                    ui.close_menu();
                 }
-
-                if ui.input(|i| i.key_pressed(egui::Key::F2)) {
+                let r = ui.hyperlink_to(
+                    fl!(crate::LANGUAGE_LOADER, "menu-item-report-bug"),
+                    "https://github.com/mkrueger/icy_view/issues/new",
+                );
+                if r.clicked() {
+                    ui.close_menu();
+                }
+                let r = ui.hyperlink_to(
+                    fl!(crate::LANGUAGE_LOADER, "menu-item-check-releases"),
+                    "https://github.com/mkrueger/icy_view/releases/latest",
+                );
+                if r.clicked() {
+                    ui.close_menu();
+                }
+                ui.separator();
+                let mut b = self.auto_scroll_enabled;
+                if ui
+                    .checkbox(
+                        &mut b,
+                        fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"),
+                    )
+                    .clicked()
+                {
                     command = Some(Message::ToggleAutoScroll);
+                    ui.close_menu();
                 }
+                let title = match self.scroll_speed {
+                    2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
+                    0 => {
+                        fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium")
+                    }
+                    1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
+                    _ => panic!(),
+                };
 
-                if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+                let r = ui.selectable_label(false, title);
+                if r.clicked() {
                     command = Some(Message::ChangeScrollSpeed);
+                    ui.close_menu();
                 }
+            });
+        });
+        if self.selected_file.is_none() && !self.files.is_empty() {
+            //  command = Some(Command::Select(0));
+        }
 
-                if let Some(s) = self.selected_file {
-                    if ui.input(|i| i.key_pressed(egui::Key::F4)) {
-                        command = Some(Message::ShowSauce(s));
+        let area = ScrollArea::vertical();
+        let row_height = ui.text_style_height(&egui::TextStyle::Body);
+        let strong_color = ui.style().visuals.strong_text_color();
+        let text_color = ui.style().visuals.text_color();
+
+        let filter = self.filter.to_lowercase();
+        let filtered_entries =
+        self.files.iter_mut().enumerate().filter(|(_, p)| {
+            if filter.is_empty() {
+                return true;
+            }
+            if let Some(sauce) = &p.sauce {
+                if sauce.title.to_string().to_lowercase().contains(&filter)
+                /*    || sauce
+                        .group
+                        .to_string()
+                        .to_lowercase()
+                        .contains(&filter)
+                    || sauce
+                        .author
+                        .to_string()
+                        .to_lowercase()
+                        .contains(&filter)*/
+                {
+                    return true;
+                }
+            }
+            p.path.to_string_lossy().to_lowercase().contains(&filter)
+        });
+
+        let mut indices = Vec::new();
+        let area_res = area.show(ui, |ui| {
+                for (real_idx, entry) in filtered_entries {
+                    entry.load_sauce();
+                    let (id, rect) = ui.allocate_space([ui.available_width(), row_height].into());
+                    indices.push(real_idx);
+                    let is_selected = Some(real_idx) == self.selected_file;
+                    let text_color = if is_selected {
+                        strong_color
+                    } else {
+                        text_color
+                    };
+                    let mut response = ui.interact(rect, id, Sense::click());
+                    if response.hovered() {
+                        ui.painter().rect_filled(
+                            rect.expand(1.0),
+                            Rounding::same(4.0),
+                            ui.style().visuals.widgets.active.bg_fill,
+                        );
+                    } else if is_selected {
+                        ui.painter().rect_filled(
+                            rect.expand(1.0),
+                            Rounding::same(4.0),
+                            ui.style().visuals.extreme_bg_color,
+                        );
+                    }
+                    
+                    let label = match entry.is_dir_or_archive() {
+                        true => "🗀 ",
+                        false => "🗋 ",
+                    }
+                    .to_string() + get_file_name(&entry.path);
+
+                    let font_id = FontId::new(14.0, FontFamily::Proportional);
+                    let text: WidgetText = label.into();
+                    let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
+                    let file_name_width = galley.size().x;
+                    ui.painter().galley_with_color(
+                        egui::Align2::LEFT_TOP
+                            .align_size_within_rect(galley.size(), rect)
+                            .min,
+                        galley.galley,
+                        text_color,
+                    );
+
+                    if let Some(sauce) = &entry.sauce {
+                        if !sauce.title.to_string().trim().is_empty() {
+                            let font_id = FontId::new(12.0, FontFamily::Proportional);
+                            let text: WidgetText = format!("- {}", sauce.title.to_string()).into();
+                            let title_galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
+                            let mut rect = rect;
+                            rect.set_left(rect.left() + file_name_width + 4.0);
+                            rect.set_top(rect.top() + 2.0);
+                            ui.painter().galley_with_color(
+                                egui::Align2::LEFT_BOTTOM
+                                    .align_size_within_rect(title_galley.size(), rect)
+                                    .min,
+                                title_galley.galley,
+                                text_color,
+                            );
+                        }
+                        response = response.on_hover_ui(|ui| {
+                            egui::Grid::new("some_unique_id")
+                            .num_columns(2)
+                            .spacing([4.0, 2.0])
+                            .show(ui, |ui| {
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
+                                });
+                                ui.strong(sauce.title.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
+                                });
+                                ui.strong(sauce.author.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
+                                });
+                                ui.strong(sauce.group.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
+                                });
+                                let mut flags: String = String::new();
+                                if sauce.use_ice {
+                                    flags.push_str("ICE");
+                                }
+
+                                if sauce.use_letter_spacing {
+                                    if !flags.is_empty() {
+                                        flags.push(',');
+                                    }
+                                    flags.push_str("9px");
+                                }
+
+                                if sauce.use_aspect_ratio {
+                                    if !flags.is_empty() {
+                                        flags.push(',');
+                                    }
+                                    flags.push_str("AR");
+                                }
+
+                                if flags.is_empty() {
+                                    ui.strong(
+                                        RichText::new(format!(
+                                            "{}x{}",
+                                            sauce.buffer_size.width,
+                                            sauce.buffer_size.height
+                                        )),
+                                    );
+                                } else {
+                                    ui.strong(
+                                        RichText::new(format!(
+                                            "{}x{} ({})",
+                                            sauce.buffer_size.width,
+                                            sauce.buffer_size.height,
+                                            flags
+                                        )),
+                                    );
+                                }
+                                ui.end_row();
+
+                        });
+
+                        });
+                    }
+                    
+                    if response.clicked() {
+                        command = Some(Message::Select(real_idx, false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none())
-                        && s > 0
+                    if response.double_clicked() {
+                        command = Some(Message::Open(real_idx));
+                    }
+            }
+        });
+
+        if file_chooser {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .button(fl!(crate::LANGUAGE_LOADER, "button-open"))
+                        .clicked()
                     {
-                        command = Some(Message::Select(s.saturating_sub(1), false));
+                        if let Some(sel) = self.selected_file {
+                            command = Some(Message::Open(sel));
+                        }
+                    }
+                    if ui
+                        .button(fl!(crate::LANGUAGE_LOADER, "button-cancel"))
+                        .clicked()
+                    {
+                        command = Some(Message::Cancel);
+                    }
+                });
+            });
+        }
+
+        if ui.is_enabled() {
+            if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.alt) {
+                command = Some(Message::ParentFolder);
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::F1)) {
+                command = Some(Message::ShowHelpDialog);
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::F2)) {
+                command = Some(Message::ToggleAutoScroll);
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::F3)) {
+                command = Some(Message::ChangeScrollSpeed);
+            }
+
+            if let Some(s) = self.selected_file {
+
+                if ui.input(|i| i.key_pressed(egui::Key::F4)) {
+                    command = Some(Message::ShowSauce(s));
+
+                }
+                let mut found = None;
+                for i in 0..indices.len() {
+                    if indices[i] == s {
+                        found = Some(i);
+                        break;
+                    }
+                }
+                if let Some(idx) = found  {
+
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none())
+                        && idx > 0
+                    {
+                        command = Some(Message::Select(indices[idx - 1], false));
                     }
 
                     if ui.input(|i| i.key_pressed(egui::Key::ArrowDown) && i.modifiers.is_none())
-                        && s + 1 < self.files.len()
+                        && idx + 1 < indices.len()
                     {
-                        command = Some(Message::Select(s.saturating_add(1), false));
+                        command = Some(Message::Select(indices[idx + 1], false));
                     }
 
                     if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -564,50 +503,50 @@ impl FileView {
 
                     if !self.files.is_empty() {
                         if ui.input(|i: &egui::InputState| {
-                            i.key_pressed(egui::Key::Home) && i.modifiers.is_none()
+                            i.key_pressed(egui::Key::Home) && i.modifiers.is_none()  && indices.len() > 0
                         }) {
-                            command = Some(Message::Select(0, false));
+                            command = Some(Message::Select(indices[0], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none()) {
+                        if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none()) && indices.len() > 0 {
                             command =
-                                Some(Message::Select(self.files.len().saturating_sub(1), false));
+                                Some(Message::Select(indices[indices.len() - 1], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none()) {
+                        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none())  && indices.len() > 0 { 
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                            command = Some(Message::Select(s.saturating_sub(page_size), false));
+                            command = Some(Message::Select(indices[idx.saturating_sub(page_size)], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none())
+                        if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none()) && indices.len() > 0
                         {
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
                             command = Some(Message::Select(
-                                (s.saturating_add(page_size)).min(self.files.len() - 1),
+                                indices[(idx.saturating_add(page_size)).min(indices.len() - 1)],
                                 false,
                             ));
                         }
                     }
-                } else if !self.files.is_empty() {
-                    if ui.input(|i| {
-                        i.key_pressed(egui::Key::ArrowUp)
-                            || i.key_pressed(egui::Key::ArrowDown)
-                            || i.key_pressed(egui::Key::PageUp)
-                            || i.key_pressed(egui::Key::PageDown)
-                    }) {
-                        command = Some(Message::Select(0, false));
-                    }
+                }
+            } else if !self.files.is_empty() {
+                if ui.input(|i| {
+                    i.key_pressed(egui::Key::ArrowUp)
+                        || i.key_pressed(egui::Key::ArrowDown)
+                        || i.key_pressed(egui::Key::PageUp)
+                        || i.key_pressed(egui::Key::PageDown)
+                }) {
+                    command = Some(Message::Select(0, false));
+                }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::Home)) {
-                        command = Some(Message::Select(0, false));
-                    }
+                if ui.input(|i| i.key_pressed(egui::Key::Home)) {
+                    command = Some(Message::Select(0, false));
+                }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::End)) {
-                        command = Some(Message::Select(self.files.len().saturating_sub(1), false));
-                    }
+                if ui.input(|i| i.key_pressed(egui::Key::End)) {
+                    command = Some(Message::Select(self.files.len().saturating_sub(1), false));
                 }
             }
-        });
+        }
 
         command
     }

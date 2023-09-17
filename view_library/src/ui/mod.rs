@@ -48,16 +48,15 @@ const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe"
 
 impl App for MainWindow {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
-        egui::TopBottomPanel::bottom("bottom_panel")
-            //   egui::SidePanel::left("left_panel")
-            .min_height(300.)
+        egui::SidePanel::left("bottom_panel")
+            .default_width(ctx.available_rect().width() * 3.0 / 2.0)
+            .exact_width(250.0)
             .resizable(true)
             .show(ctx, |ui| {
                 ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
                 let command = self.file_view.show_ui(ui, false);
                 self.handle_command(command);
             });
-
         let frame_no_margins = egui::containers::Frame::none()
             .outer_margin(egui::style::Margin::same(0.0))
             .inner_margin(egui::style::Margin::same(0.0))
@@ -152,8 +151,7 @@ impl MainWindow {
         self.opened_file = None;
         egui::SidePanel::left("bottom_panel")
             .default_width(ctx.available_rect().width() * 3.0 / 2.0)
-            //   egui::SidePanel::left("left_panel")
-            //            .exact_height(300.)
+            .exact_width(250.0)
             .resizable(true)
             .show(ctx, |ui| {
                 let command = self.file_view.show_ui(ui, true);

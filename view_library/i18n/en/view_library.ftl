@@ -1,8 +1,7 @@
-heading-file=File
 heading-title=Title
 heading-author=Author
 heading-group=Group
-heading-screen-mode=Screen mode
+heading-screen-mode=Flags
 
 menu-item-discuss=Discuss
 menu-item-report-bug=Report a bug
