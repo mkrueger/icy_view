@@ -122,6 +122,7 @@ impl App for MainWindow {
 impl MainWindow {
     pub fn new(gl: &Arc<glow::Context>, initial_path: Option<PathBuf>) -> Self {
         let mut view = BufferView::new(&gl, glow::NEAREST as i32);
+        view.interactive = false;
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().is_visible = false;
 
@@ -230,7 +231,6 @@ impl MainWindow {
 
             let dt = ui.input(|i| i.unstable_dt);
             let opt = icy_engine_egui::TerminalOptions {
-                focus_lock: false,
                 stick_to_bottom: false,
                 scale: Some(Vec2::new(scalex, scaley)),
                 use_terminal_height: false,
