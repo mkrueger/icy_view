@@ -298,7 +298,6 @@ impl FileView {
         let mut indices = Vec::new();
         let area_res = area.show(ui, |ui| {
             for (real_idx, entry) in filtered_entries {
-                entry.load_sauce();
                 let (id, rect) = ui.allocate_space([ui.available_width(), row_height].into());
                 indices.push(real_idx);
                 let is_selected = Some(real_idx) == self.selected_file;
@@ -332,7 +331,6 @@ impl FileView {
                 let font_id = FontId::new(14.0, FontFamily::Proportional);
                 let text: WidgetText = label.into();
                 let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-                let file_name_width = galley.size().x;
                 ui.painter().galley_with_color(
                     egui::Align2::LEFT_TOP
                         .align_size_within_rect(galley.size(), rect)
@@ -340,80 +338,66 @@ impl FileView {
                     galley.galley,
                     text_color,
                 );
+                if response.hovered()  {
+                    entry.load_sauce();
+                    if let Some(sauce) = &entry.sauce {
+                        response = response.on_hover_ui(|ui| {
+                            egui::Grid::new("some_unique_id")
+                                .num_columns(2)
+                                .spacing([4.0, 2.0])
+                                .show(ui, |ui| {
+                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
+                                    });
+                                    ui.strong(sauce.title.to_string());
+                                    ui.end_row();
+                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
+                                    });
+                                    ui.strong(sauce.author.to_string());
+                                    ui.end_row();
+                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
+                                    });
+                                    ui.strong(sauce.group.to_string());
+                                    ui.end_row();
+                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
+                                    });
+                                    let mut flags: String = String::new();
+                                    if sauce.use_ice {
+                                        flags.push_str("ICE");
+                                    }
 
-                if let Some(sauce) = &entry.sauce {
-                    if !sauce.title.to_string().trim().is_empty() {
-                        let font_id = FontId::new(12.0, FontFamily::Proportional);
-                        let text: WidgetText = format!("- {}", sauce.title.to_string()).into();
-                        let title_galley =
-                            text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-                        let mut rect = rect;
-                        rect.set_left(rect.left() + file_name_width + 4.0);
-                        rect.set_top(rect.top() + 2.0);
-                        ui.painter().galley_with_color(
-                            egui::Align2::LEFT_BOTTOM
-                                .align_size_within_rect(title_galley.size(), rect)
-                                .min,
-                            title_galley.galley,
-                            text_color,
-                        );
+                                    if sauce.use_letter_spacing {
+                                        if !flags.is_empty() {
+                                            flags.push(',');
+                                        }
+                                        flags.push_str("9px");
+                                    }
+
+                                    if sauce.use_aspect_ratio {
+                                        if !flags.is_empty() {
+                                            flags.push(',');
+                                        }
+                                        flags.push_str("AR");
+                                    }
+
+                                    if flags.is_empty() {
+                                        ui.strong(RichText::new(format!(
+                                            "{}x{}",
+                                            sauce.buffer_size.width, sauce.buffer_size.height
+                                        )));
+                                    } else {
+                                        ui.strong(RichText::new(format!(
+                                            "{}x{} ({})",
+                                            sauce.buffer_size.width, sauce.buffer_size.height, flags
+                                        )));
+                                    }
+                                    ui.end_row();
+                                });
+                        });
                     }
-                    response = response.on_hover_ui(|ui| {
-                        egui::Grid::new("some_unique_id")
-                            .num_columns(2)
-                            .spacing([4.0, 2.0])
-                            .show(ui, |ui| {
-                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
-                                });
-                                ui.strong(sauce.title.to_string());
-                                ui.end_row();
-                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
-                                });
-                                ui.strong(sauce.author.to_string());
-                                ui.end_row();
-                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
-                                });
-                                ui.strong(sauce.group.to_string());
-                                ui.end_row();
-                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
-                                });
-                                let mut flags: String = String::new();
-                                if sauce.use_ice {
-                                    flags.push_str("ICE");
-                                }
-
-                                if sauce.use_letter_spacing {
-                                    if !flags.is_empty() {
-                                        flags.push(',');
-                                    }
-                                    flags.push_str("9px");
-                                }
-
-                                if sauce.use_aspect_ratio {
-                                    if !flags.is_empty() {
-                                        flags.push(',');
-                                    }
-                                    flags.push_str("AR");
-                                }
-
-                                if flags.is_empty() {
-                                    ui.strong(RichText::new(format!(
-                                        "{}x{}",
-                                        sauce.buffer_size.width, sauce.buffer_size.height
-                                    )));
-                                } else {
-                                    ui.strong(RichText::new(format!(
-                                        "{}x{} ({})",
-                                        sauce.buffer_size.width, sauce.buffer_size.height, flags
-                                    )));
-                                }
-                                ui.end_row();
-                            });
-                    });
                 }
 
                 if response.clicked() {
