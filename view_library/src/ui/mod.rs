@@ -9,7 +9,7 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::BufferView;
 
-use std::{io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration, env::current_dir};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -120,12 +120,19 @@ impl App for MainWindow {
 }
 
 impl MainWindow {
-    pub fn new(gl: &Arc<glow::Context>, initial_path: Option<PathBuf>) -> Self {
+    pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
         let mut view = BufferView::new(&gl, glow::NEAREST as i32);
         view.interactive = false;
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().is_visible = false;
+        if let Some(path) = &initial_path {
+            if path.is_relative() {
+                if let Ok(cur) = current_dir() {
+                    initial_path = Some(cur.join(path));
+                }
+            }
 
+        }
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
             file_view: FileView::new(initial_path),
