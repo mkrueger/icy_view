@@ -469,15 +469,18 @@ impl MainWindow {
                             log::error!("Error while parsing icyanim file: {err}");
                             Err(anyhow::anyhow!("Error while parsing icyanim file: {err}"))
                         }
-                    })
-                    .unwrap();
+                    });
                 match anim {
-                    Ok(anim) => {
+                    Ok(Ok(anim)) => {
                         anim.lock().start_playback(self.buffer_view.clone());
                         self.animation = Some(anim);
                         return;
                     }
-                    Err(err) => self.error_text = Some(err.to_string()),
+                    Ok(Err(err)) |
+                    Err(err) => {
+                        log::error!("Error while loading icyanim file: {err}");
+                        self.error_text = Some(err.to_string())
+                    }
                 }
             }
 
