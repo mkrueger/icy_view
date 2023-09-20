@@ -38,7 +38,7 @@ pub struct FileEntry {
 }
 
 impl FileEntry {
-    pub fn get_data<T>(&self, func: fn(&PathBuf, &[u8]) -> T) -> io::Result<T> {
+    pub fn get_data<T>(&self, func: fn(&PathBuf, &[u8]) -> T) -> anyhow::Result<T> {
         if let Some(data) = &self.file_data {
             return Ok(func(&self.path, data));
         }
@@ -338,7 +338,7 @@ impl FileView {
                     galley.galley,
                     text_color,
                 );
-                if response.hovered()  {
+                if response.hovered() {
                     entry.load_sauce();
                     if let Some(sauce) = &entry.sauce {
                         response = response.on_hover_ui(|ui| {
@@ -346,24 +346,39 @@ impl FileView {
                                 .num_columns(2)
                                 .spacing([4.0, 2.0])
                                 .show(ui, |ui| {
-                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
-                                    });
+                                    ui.with_layout(
+                                        Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
+                                        },
+                                    );
                                     ui.strong(sauce.title.to_string());
                                     ui.end_row();
-                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
-                                    });
+                                    ui.with_layout(
+                                        Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
+                                        },
+                                    );
                                     ui.strong(sauce.author.to_string());
                                     ui.end_row();
-                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
-                                    });
+                                    ui.with_layout(
+                                        Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
+                                        },
+                                    );
                                     ui.strong(sauce.group.to_string());
                                     ui.end_row();
-                                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
-                                    });
+                                    ui.with_layout(
+                                        Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            ui.label(fl!(
+                                                crate::LANGUAGE_LOADER,
+                                                "heading-screen-mode"
+                                            ));
+                                        },
+                                    );
                                     let mut flags: String = String::new();
                                     if sauce.use_ice {
                                         flags.push_str("ICE");
@@ -391,7 +406,9 @@ impl FileView {
                                     } else {
                                         ui.strong(RichText::new(format!(
                                             "{}x{} ({})",
-                                            sauce.buffer_size.width, sauce.buffer_size.height, flags
+                                            sauce.buffer_size.width,
+                                            sauce.buffer_size.height,
+                                            flags
                                         )));
                                     }
                                     ui.end_row();
@@ -481,19 +498,19 @@ impl FileView {
                         if ui.input(|i: &egui::InputState| {
                             i.key_pressed(egui::Key::Home)
                                 && i.modifiers.is_none()
-                                && indices.len() > 0
+                                && !indices.is_empty()
                         }) {
                             command = Some(Message::Select(indices[0], false));
                         }
 
                         if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none())
-                            && indices.len() > 0
+                            && !indices.is_empty()
                         {
                             command = Some(Message::Select(indices[indices.len() - 1], false));
                         }
 
                         if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none())
-                            && indices.len() > 0
+                            && !indices.is_empty()
                         {
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
                             command = Some(Message::Select(
@@ -503,7 +520,7 @@ impl FileView {
                         }
 
                         if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none())
-                            && indices.len() > 0
+                            && !indices.is_empty()
                         {
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
                             command = Some(Message::Select(

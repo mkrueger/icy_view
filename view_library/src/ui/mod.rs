@@ -1,15 +1,22 @@
 use eframe::{
     egui::{self, Context, CursorIcon, RichText, ScrollArea},
-    epaint::{Color32, Vec2},
+    epaint::{mutex::Mutex, Color32, Vec2},
     App, Frame,
 };
 
 use egui_extras::RetainedImage;
 use i18n_embed_fl::fl;
 use icy_engine::Buffer;
-use icy_engine_egui::BufferView;
+use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
-use std::{io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration, env::current_dir};
+use std::{
+    env::current_dir,
+    io,
+    path::PathBuf,
+    sync::Arc,
+    thread::JoinHandle,
+    time::Duration,
+};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -40,9 +47,12 @@ pub struct MainWindow {
     toasts: egui_notify::Toasts,
     is_closed: bool,
     pub opened_file: Option<FileEntry>,
+
+    // animations
+    animation: Option<Arc<Mutex<Animator>>>,
 }
 const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
-const EXT_WHITE_LIST: [&str; 3] = ["seq", "diz", "nfo"];
+const EXT_WHITE_LIST: [&str; 5] = ["seq", "diz", "nfo", "ice", "bbs"];
 
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
 
@@ -116,12 +126,13 @@ impl App for MainWindow {
                 frame.close();
             }
         }
+
     }
 }
 
 impl MainWindow {
     pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
-        let mut view = BufferView::new(&gl, glow::NEAREST as i32);
+        let mut view = BufferView::new(gl, glow::NEAREST as i32);
         view.interactive = false;
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().is_visible = false;
@@ -131,7 +142,6 @@ impl MainWindow {
                     initial_path = Some(cur.join(path));
                 }
             }
-
         }
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
@@ -151,6 +161,7 @@ impl MainWindow {
             toasts: egui_notify::Toasts::default(),
             opened_file: None,
             is_closed: false,
+            animation: None,
         }
     }
 
@@ -226,34 +237,14 @@ impl MainWindow {
             return;
         }
 
+        if let Some(anim) = &self.animation {
+            let settings =  anim.lock().update_frame(self.buffer_view.clone());
+            let (_, _) = self.show_buffer_view(ui, settings);
+            return;
+        }
+
         if self.loaded_buffer {
-            let w = (ui.available_width() / 8.0).floor();
-            let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
-
-            let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
-                scalex * 1.35
-            } else {
-                scalex
-            };
-
-            let dt = ui.input(|i| i.unstable_dt);
-            let opt = icy_engine_egui::TerminalOptions {
-                stick_to_bottom: false,
-                scale: Some(Vec2::new(scalex, scaley)),
-                use_terminal_height: false,
-                scroll_offset: if self.in_scroll {
-                    Some(
-                        (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt)
-                            .round(),
-                    )
-                } else {
-                    Some(self.cur_scroll_pos.round())
-                },
-                ..Default::default()
-            };
-
-            let (response, calc) =
-                icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+            let (response, calc) = self.show_buffer_view(ui, MonitorSettings::default());
 
             // stop scrolling when reached the end.
             if self.in_scroll {
@@ -375,6 +366,37 @@ impl MainWindow {
         }
     }
 
+    fn show_buffer_view(&mut self, ui: &mut egui::Ui, monitor_settings: MonitorSettings) -> (egui::Response, icy_engine_egui::TerminalCalc) {
+        let w = (ui.available_width() / 8.0).floor();
+        let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
+        let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
+            scalex * 1.35
+        } else {
+            scalex
+        };
+
+        let dt = ui.input(|i| i.unstable_dt);
+        let opt = icy_engine_egui::TerminalOptions {
+            stick_to_bottom: false,
+            scale: Some(Vec2::new(scalex, scaley)),
+            use_terminal_height: false,
+            scroll_offset: if self.in_scroll {
+                Some(
+                    (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt)
+                        .round(),
+                )
+            } else {
+                Some(self.cur_scroll_pos.round())
+            },
+            monitor_settings,
+            ..Default::default()
+        };
+
+        let (response, calc) =
+            icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+        (response, calc)
+    }
+
     fn open_selected(&mut self, file: usize) -> bool {
         if file >= self.file_view.files.len() {
             return false;
@@ -398,10 +420,13 @@ impl MainWindow {
 
         open_path
     }
+
     fn view_selected(&mut self, file: usize, force_load: bool) {
         if file >= self.file_view.files.len() {
             return;
         }
+        self.animation = None;
+
         let entry = &self.file_view.files[file];
         if entry.is_file() {
             let ext = if let Some(ext) = entry.path.extension() {
@@ -422,6 +447,40 @@ impl MainWindow {
                 }));
                 return;
             }
+            if ext == "icyanim" {
+                let anim = entry
+                    .get_data(|path, data| match String::from_utf8(data.to_vec()) {
+                        Ok(data) => {
+                            let parent = path.parent().map(|path| path.to_path_buf());
+
+                            match Animator::run(&parent, &data) {
+                                Ok(anim) => {
+                                    anim.lock().set_is_loop(true);
+                                    anim.lock().set_is_playing(true);
+                                    Ok(anim)
+                                }
+                                Err(err) => {
+                                    log::error!("{err}");
+                                    Err(anyhow::anyhow!("{err}"))
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            log::error!("Error while parsing icyanim file: {err}");
+                            Err(anyhow::anyhow!("Error while parsing icyanim file: {err}"))
+                        }
+                    })
+                    .unwrap();
+                match anim {
+                    Ok(anim) => {
+                        anim.lock().start_playback(self.buffer_view.clone());
+                        self.animation = Some(anim);
+                        return;
+                    }
+                    Err(err) => self.error_text = Some(err.to_string()),
+                }
+            }
+
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
                 || icy_engine::FORMATS
@@ -562,5 +621,5 @@ fn is_binary(file_entry: &FileEntry) -> bool {
     }) {
         log::warn!("Error while checking if file is binary: {}", err);
     }
-    return true;
+    true
 }
