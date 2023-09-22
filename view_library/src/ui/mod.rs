@@ -241,7 +241,7 @@ impl MainWindow {
             // stop scrolling when reached the end.
             if self.in_scroll {
                 let last_scroll_pos =
-                    calc.char_height - calc.buffer_char_height + calc.scroll_remainder;
+                    calc.char_height - calc.buffer_char_height + calc.scroll_remainder_y;
                 if last_scroll_pos <= calc.char_scroll_positon.y / calc.font_height {
                     self.in_scroll = false;
                 }
@@ -293,7 +293,9 @@ impl MainWindow {
             if response.drag_started_by(egui::PointerButton::Primary) {
                 self.drag_started = false;
                 if let Some(mouse_pos) = response.interact_pointer_pos() {
-                    if !calc.scrollbar_rect.contains(mouse_pos) {
+                    if !calc.vert_scrollbar_rect.contains(mouse_pos)
+                        && !calc.horiz_scrollbar_rect.contains(mouse_pos)
+                    {
                         self.drag_started = true;
                         ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
                     }
@@ -381,7 +383,7 @@ impl MainWindow {
             stick_to_bottom: false,
             scale: Some(Vec2::new(scalex, scaley)),
             use_terminal_height: false,
-            scroll_offset: Some(Vec2::new(0.0, sp)),
+            scroll_offset_y: Some(sp),
             monitor_settings,
             ..Default::default()
         };
