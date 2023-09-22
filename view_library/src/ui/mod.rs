@@ -9,14 +9,7 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
-use std::{
-    env::current_dir,
-    io,
-    path::PathBuf,
-    sync::Arc,
-    thread::JoinHandle,
-    time::Duration,
-};
+use std::{env::current_dir, io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -126,7 +119,6 @@ impl App for MainWindow {
                 frame.close();
             }
         }
-
     }
 }
 
@@ -238,7 +230,7 @@ impl MainWindow {
         }
 
         if let Some(anim) = &self.animation {
-            let settings =  anim.lock().update_frame(self.buffer_view.clone());
+            let settings = anim.lock().update_frame(self.buffer_view.clone());
             let (_, _) = self.show_buffer_view(ui, settings);
             return;
         }
@@ -250,11 +242,11 @@ impl MainWindow {
             if self.in_scroll {
                 let last_scroll_pos =
                     calc.char_height - calc.buffer_char_height + calc.scroll_remainder;
-                if last_scroll_pos <= calc.char_scroll_positon / calc.font_height {
+                if last_scroll_pos <= calc.char_scroll_positon.y / calc.font_height {
                     self.in_scroll = false;
                 }
             }
-            self.cur_scroll_pos = calc.char_scroll_positon;
+            self.cur_scroll_pos = calc.char_scroll_positon.y;
 
             if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home) && i.modifiers.ctrl) {
                 self.cur_scroll_pos = 0.0;
@@ -366,7 +358,11 @@ impl MainWindow {
         }
     }
 
-    fn show_buffer_view(&mut self, ui: &mut egui::Ui, monitor_settings: MonitorSettings) -> (egui::Response, icy_engine_egui::TerminalCalc) {
+    fn show_buffer_view(
+        &mut self,
+        ui: &mut egui::Ui,
+        monitor_settings: MonitorSettings,
+    ) -> (egui::Response, icy_engine_egui::TerminalCalc) {
         let w = (ui.available_width() / 8.0).floor();
         let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
         let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
@@ -376,18 +372,16 @@ impl MainWindow {
         };
 
         let dt = ui.input(|i| i.unstable_dt);
+        let sp = if self.in_scroll {
+            (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt).round()
+        } else {
+            self.cur_scroll_pos.round()
+        };
         let opt = icy_engine_egui::TerminalOptions {
             stick_to_bottom: false,
             scale: Some(Vec2::new(scalex, scaley)),
             use_terminal_height: false,
-            scroll_offset: if self.in_scroll {
-                Some(
-                    (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt)
-                        .round(),
-                )
-            } else {
-                Some(self.cur_scroll_pos.round())
-            },
+            scroll_offset: Some(Vec2::new(0.0, sp)),
             monitor_settings,
             ..Default::default()
         };
@@ -448,36 +442,34 @@ impl MainWindow {
                 return;
             }
             if ext == "icyanim" {
-                let anim = entry
-                    .get_data(|path, data| match String::from_utf8(data.to_vec()) {
-                        Ok(data) => {
-                            let parent = path.parent().map(|path| path.to_path_buf());
+                let anim = entry.get_data(|path, data| match String::from_utf8(data.to_vec()) {
+                    Ok(data) => {
+                        let parent = path.parent().map(|path| path.to_path_buf());
 
-                            match Animator::run(&parent, &data) {
-                                Ok(anim) => {
-                                    anim.lock().set_is_loop(true);
-                                    anim.lock().set_is_playing(true);
-                                    Ok(anim)
-                                }
-                                Err(err) => {
-                                    log::error!("{err}");
-                                    Err(anyhow::anyhow!("{err}"))
-                                }
+                        match Animator::run(&parent, &data) {
+                            Ok(anim) => {
+                                anim.lock().set_is_loop(true);
+                                anim.lock().set_is_playing(true);
+                                Ok(anim)
+                            }
+                            Err(err) => {
+                                log::error!("{err}");
+                                Err(anyhow::anyhow!("{err}"))
                             }
                         }
-                        Err(err) => {
-                            log::error!("Error while parsing icyanim file: {err}");
-                            Err(anyhow::anyhow!("Error while parsing icyanim file: {err}"))
-                        }
-                    });
+                    }
+                    Err(err) => {
+                        log::error!("Error while parsing icyanim file: {err}");
+                        Err(anyhow::anyhow!("Error while parsing icyanim file: {err}"))
+                    }
+                });
                 match anim {
                     Ok(Ok(anim)) => {
                         anim.lock().start_playback(self.buffer_view.clone());
                         self.animation = Some(anim);
                         return;
                     }
-                    Ok(Err(err)) |
-                    Err(err) => {
+                    Ok(Err(err)) | Err(err) => {
                         log::error!("Error while loading icyanim file: {err}");
                         self.error_text = Some(err.to_string())
                     }
