@@ -470,13 +470,7 @@ impl FileView {
                 if ui.input(|i| i.key_pressed(egui::Key::F4)) {
                     command = Some(Message::ShowSauce(s));
                 }
-                let mut found = None;
-                for i in 0..indices.len() {
-                    if indices[i] == s {
-                        found = Some(i);
-                        break;
-                    }
-                }
+                let found = indices.iter().position(|i| *i == s);
                 if let Some(idx) = found {
                     if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none())
                         && idx > 0
