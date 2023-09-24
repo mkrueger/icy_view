@@ -124,7 +124,7 @@ impl App for MainWindow {
 
 impl MainWindow {
     pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
-        let mut view = BufferView::new(gl, glow::NEAREST as i32);
+        let mut view = BufferView::new(gl);
         view.interactive = false;
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().is_visible = false;
