@@ -1,6 +1,6 @@
 use eframe::{
     egui::{self, Context, CursorIcon, RichText, ScrollArea},
-    epaint::{mutex::Mutex, Color32, Vec2},
+    epaint::{Color32, Vec2},
     App, Frame,
 };
 
@@ -9,7 +9,7 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
-use std::{env::current_dir, io, path::PathBuf, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{env::current_dir, io, path::PathBuf, sync::{Arc, Mutex}, thread::JoinHandle, time::Duration};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -230,7 +230,7 @@ impl MainWindow {
         }
 
         if let Some(anim) = &self.animation {
-            let settings = anim.lock().update_frame(self.buffer_view.clone());
+            let settings = anim.lock().unwrap().update_frame(self.buffer_view.clone());
             let (_, _) = self.show_buffer_view(ui, settings);
             return;
         }
@@ -450,8 +450,8 @@ impl MainWindow {
 
                         match Animator::run(&parent, &data) {
                             Ok(anim) => {
-                                anim.lock().set_is_loop(true);
-                                anim.lock().set_is_playing(true);
+                                anim.lock().unwrap().set_is_loop(true);
+                                anim.lock().unwrap().set_is_playing(true);
                                 Ok(anim)
                             }
                             Err(err) => {
@@ -467,7 +467,7 @@ impl MainWindow {
                 });
                 match anim {
                     Ok(Ok(anim)) => {
-                        anim.lock().start_playback(self.buffer_view.clone());
+                        anim.lock().unwrap().start_playback(self.buffer_view.clone());
                         self.animation = Some(anim);
                         return;
                     }
