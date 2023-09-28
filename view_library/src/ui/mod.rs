@@ -22,6 +22,7 @@ pub struct MainWindow {
     pub file_view: FileView,
     pub in_scroll: bool,
     cur_scroll_pos: f32,
+    pub last_scroll_pos: f32,
     drag_vel: f32,
     key_vel: f32,
     drag_started: bool,
@@ -150,6 +151,7 @@ impl MainWindow {
             cur_scroll_pos: 0.0,
             drag_vel: 0.0,
             key_vel: 0.0,
+            last_scroll_pos: 1.0,
             toasts: egui_notify::Toasts::default(),
             opened_file: None,
             is_closed: false,
@@ -240,11 +242,10 @@ impl MainWindow {
 
             // stop scrolling when reached the end.
             if self.in_scroll {
-                let last_scroll_pos =
-                    calc.char_height - calc.buffer_char_height + calc.scroll_remainder_y;
-                if last_scroll_pos <= calc.char_scroll_position.y / calc.font_height {
+                if self.last_scroll_pos == calc.char_scroll_position.y {
                     self.in_scroll = false;
                 }
+                self.last_scroll_pos = calc.char_scroll_position.y;
             }
             self.cur_scroll_pos = calc.char_scroll_position.y;
 
@@ -422,7 +423,7 @@ impl MainWindow {
             return;
         }
         self.animation = None;
-
+        self.last_scroll_pos = -1.0;
         let entry = &self.file_view.files[file];
         if entry.is_file() {
             let ext = if let Some(ext) = entry.path.extension() {
