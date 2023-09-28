@@ -242,11 +242,11 @@ impl MainWindow {
             if self.in_scroll {
                 let last_scroll_pos =
                     calc.char_height - calc.buffer_char_height + calc.scroll_remainder_y;
-                if last_scroll_pos <= calc.char_scroll_positon.y / calc.font_height {
+                if last_scroll_pos <= calc.char_scroll_position.y / calc.font_height {
                     self.in_scroll = false;
                 }
             }
-            self.cur_scroll_pos = calc.char_scroll_positon.y;
+            self.cur_scroll_pos = calc.char_scroll_position.y;
 
             if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home) && i.modifiers.ctrl) {
                 self.cur_scroll_pos = 0.0;
