@@ -448,18 +448,10 @@ impl MainWindow {
                 let anim = entry.get_data(|path, data| match String::from_utf8(data.to_vec()) {
                     Ok(data) => {
                         let parent = path.parent().map(|path| path.to_path_buf());
-
-                        match Animator::run(&parent, &data) {
-                            Ok(anim) => {
-                                anim.lock().unwrap().set_is_loop(true);
-                                anim.lock().unwrap().set_is_playing(true);
-                                Ok(anim)
-                            }
-                            Err(err) => {
-                                log::error!("{err}");
-                                Err(anyhow::anyhow!("{err}"))
-                            }
-                        }
+                        let anim = Animator::run(&parent, data);
+                        anim.lock().unwrap().set_is_loop(true);
+                        anim.lock().unwrap().set_is_playing(true);
+                        Ok(anim)
                     }
                     Err(err) => {
                         log::error!("Error while parsing icyanim file: {err}");
