@@ -131,7 +131,7 @@ impl MainWindow {
         let mut view = BufferView::new(gl);
         view.interactive = false;
         view.get_buffer_mut().is_terminal_buffer = false;
-        view.get_caret_mut().is_visible = false;
+        view.get_caret_mut().set_is_visible(false);
         if let Some(path) = &initial_path {
             if path.is_relative() {
                 if let Ok(cur) = current_dir() {
