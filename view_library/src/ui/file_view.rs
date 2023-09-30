@@ -48,10 +48,7 @@ impl FileEntry {
         Ok(func(&self.path, &mmap))
     }
 
-    pub fn read_image(
-        &self,
-        func: fn(&PathBuf, &[u8]) -> Result<RetainedImage, String>,
-    ) -> JoinHandle<io::Result<RetainedImage>> {
+    pub fn read_image(&self, func: fn(&PathBuf, &[u8]) -> Result<RetainedImage, String>) -> JoinHandle<io::Result<RetainedImage>> {
         let path = self.path.clone();
         if let Some(data) = &self.file_data {
             let data = data.clone();
@@ -145,14 +142,7 @@ impl FileView {
             path.pop();
         }
 
-        if path.is_file()
-            && path
-                .extension()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_ascii_lowercase()
-                != "zip"
-        {
+        if path.is_file() && path.extension().unwrap_or_default().to_string_lossy().to_ascii_lowercase() != "zip" {
             pre_select_file = Some(path.file_name().unwrap().to_string_lossy().to_string());
             path.pop();
         }
@@ -179,9 +169,7 @@ impl FileView {
                     .hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text"))
                     .desired_width(f32::INFINITY),
             );
-            let response = ui
-                .button("🗙")
-                .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
+            let response = ui.button("🗙").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
             if response.clicked() {
                 self.filter.clear();
             }
@@ -194,10 +182,7 @@ impl FileView {
                     ui.add(TextEdit::singleline(&mut path_edit).desired_width(f32::INFINITY));
                 }
                 None => {
-                    ui.colored_label(
-                        ui.style().visuals.error_fg_color,
-                        fl!(crate::LANGUAGE_LOADER, "error-invalid-path"),
-                    );
+                    ui.colored_label(ui.style().visuals.error_fg_color, fl!(crate::LANGUAGE_LOADER, "error-invalid-path"));
                 }
             }
 
@@ -208,9 +193,7 @@ impl FileView {
                 }
             });
 
-            let response = ui
-                .button("⟲")
-                .on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
+            let response = ui.button("⟲").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-refresh"));
             if response.clicked() {
                 command = Some(Message::Refresh);
             }
@@ -239,10 +222,7 @@ impl FileView {
                 }
                 ui.separator();
                 let mut b = self.auto_scroll_enabled;
-                if ui
-                    .checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll"))
-                    .clicked()
-                {
+                if ui.checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
                     command = Some(Message::ToggleAutoScroll);
                     ui.close_menu();
                 }
@@ -301,24 +281,14 @@ impl FileView {
                 let (id, rect) = ui.allocate_space([ui.available_width(), row_height].into());
                 indices.push(real_idx);
                 let is_selected = Some(real_idx) == self.selected_file;
-                let text_color = if is_selected {
-                    strong_color
-                } else {
-                    text_color
-                };
+                let text_color = if is_selected { strong_color } else { text_color };
                 let mut response = ui.interact(rect, id, Sense::click());
                 if response.hovered() {
-                    ui.painter().rect_filled(
-                        rect.expand(1.0),
-                        Rounding::same(4.0),
-                        ui.style().visuals.widgets.active.bg_fill,
-                    );
+                    ui.painter()
+                        .rect_filled(rect.expand(1.0), Rounding::same(4.0), ui.style().visuals.widgets.active.bg_fill);
                 } else if is_selected {
-                    ui.painter().rect_filled(
-                        rect.expand(1.0),
-                        Rounding::same(4.0),
-                        ui.style().visuals.extreme_bg_color,
-                    );
+                    ui.painter()
+                        .rect_filled(rect.expand(1.0), Rounding::same(4.0), ui.style().visuals.extreme_bg_color);
                 }
 
                 let label = match entry.is_dir_or_archive() {
@@ -332,9 +302,7 @@ impl FileView {
                 let text: WidgetText = label.into();
                 let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
                 ui.painter().galley_with_color(
-                    egui::Align2::LEFT_TOP
-                        .align_size_within_rect(galley.size(), rect)
-                        .min,
+                    egui::Align2::LEFT_TOP.align_size_within_rect(galley.size(), rect).min,
                     galley.galley,
                     text_color,
                 );
@@ -342,77 +310,51 @@ impl FileView {
                     entry.load_sauce();
                     if let Some(sauce) = &entry.sauce {
                         response = response.on_hover_ui(|ui| {
-                            egui::Grid::new("some_unique_id")
-                                .num_columns(2)
-                                .spacing([4.0, 2.0])
-                                .show(ui, |ui| {
-                                    ui.with_layout(
-                                        Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
-                                        },
-                                    );
-                                    ui.strong(sauce.title.to_string());
-                                    ui.end_row();
-                                    ui.with_layout(
-                                        Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
-                                        },
-                                    );
-                                    ui.strong(sauce.author.to_string());
-                                    ui.end_row();
-                                    ui.with_layout(
-                                        Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
-                                        },
-                                    );
-                                    ui.strong(sauce.group.to_string());
-                                    ui.end_row();
-                                    ui.with_layout(
-                                        Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            ui.label(fl!(
-                                                crate::LANGUAGE_LOADER,
-                                                "heading-screen-mode"
-                                            ));
-                                        },
-                                    );
-                                    let mut flags: String = String::new();
-                                    if sauce.use_ice {
-                                        flags.push_str("ICE");
-                                    }
-
-                                    if sauce.use_letter_spacing {
-                                        if !flags.is_empty() {
-                                            flags.push(',');
-                                        }
-                                        flags.push_str("9px");
-                                    }
-
-                                    if sauce.use_aspect_ratio {
-                                        if !flags.is_empty() {
-                                            flags.push(',');
-                                        }
-                                        flags.push_str("AR");
-                                    }
-
-                                    if flags.is_empty() {
-                                        ui.strong(RichText::new(format!(
-                                            "{}x{}",
-                                            sauce.buffer_size.width, sauce.buffer_size.height
-                                        )));
-                                    } else {
-                                        ui.strong(RichText::new(format!(
-                                            "{}x{} ({})",
-                                            sauce.buffer_size.width,
-                                            sauce.buffer_size.height,
-                                            flags
-                                        )));
-                                    }
-                                    ui.end_row();
+                            egui::Grid::new("some_unique_id").num_columns(2).spacing([4.0, 2.0]).show(ui, |ui| {
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
                                 });
+                                ui.strong(sauce.title.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
+                                });
+                                ui.strong(sauce.author.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
+                                });
+                                ui.strong(sauce.group.to_string());
+                                ui.end_row();
+                                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
+                                });
+                                let mut flags: String = String::new();
+                                if sauce.use_ice {
+                                    flags.push_str("ICE");
+                                }
+
+                                if sauce.use_letter_spacing {
+                                    if !flags.is_empty() {
+                                        flags.push(',');
+                                    }
+                                    flags.push_str("9px");
+                                }
+
+                                if sauce.use_aspect_ratio {
+                                    if !flags.is_empty() {
+                                        flags.push(',');
+                                    }
+                                    flags.push_str("AR");
+                                }
+
+                                if flags.is_empty() {
+                                    ui.strong(RichText::new(format!("{}x{}", sauce.buffer_size.width, sauce.buffer_size.height)));
+                                } else {
+                                    ui.strong(RichText::new(format!("{}x{} ({})", sauce.buffer_size.width, sauce.buffer_size.height, flags)));
+                                }
+                                ui.end_row();
+                            });
                         });
                     }
                 }
@@ -431,18 +373,12 @@ impl FileView {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .button(fl!(crate::LANGUAGE_LOADER, "button-open"))
-                        .clicked()
-                    {
+                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-open")).clicked() {
                         if let Some(sel) = self.selected_file {
                             command = Some(Message::Open(sel));
                         }
                     }
-                    if ui
-                        .button(fl!(crate::LANGUAGE_LOADER, "button-cancel"))
-                        .clicked()
-                    {
+                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-cancel")).clicked() {
                         command = Some(Message::Cancel);
                     }
                 });
@@ -472,15 +408,11 @@ impl FileView {
                 }
                 let found = indices.iter().position(|i| *i == s);
                 if let Some(idx) = found {
-                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none())
-                        && idx > 0
-                    {
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.is_none()) && idx > 0 {
                         command = Some(Message::Select(indices[idx - 1], false));
                     }
 
-                    if ui.input(|i| i.key_pressed(egui::Key::ArrowDown) && i.modifiers.is_none())
-                        && idx + 1 < indices.len()
-                    {
+                    if ui.input(|i| i.key_pressed(egui::Key::ArrowDown) && i.modifiers.is_none()) && idx + 1 < indices.len() {
                         command = Some(Message::Select(indices[idx + 1], false));
                     }
 
@@ -489,38 +421,22 @@ impl FileView {
                     }
 
                     if !self.files.is_empty() {
-                        if ui.input(|i: &egui::InputState| {
-                            i.key_pressed(egui::Key::Home)
-                                && i.modifiers.is_none()
-                                && !indices.is_empty()
-                        }) {
+                        if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::Home) && i.modifiers.is_none() && !indices.is_empty()) {
                             command = Some(Message::Select(indices[0], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none())
-                            && !indices.is_empty()
-                        {
+                        if ui.input(|i| i.key_pressed(egui::Key::End) && i.modifiers.is_none()) && !indices.is_empty() {
                             command = Some(Message::Select(indices[indices.len() - 1], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none())
-                            && !indices.is_empty()
-                        {
+                        if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.is_none()) && !indices.is_empty() {
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                            command = Some(Message::Select(
-                                indices[idx.saturating_sub(page_size)],
-                                false,
-                            ));
+                            command = Some(Message::Select(indices[idx.saturating_sub(page_size)], false));
                         }
 
-                        if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none())
-                            && !indices.is_empty()
-                        {
+                        if ui.input(|i| i.key_pressed(egui::Key::PageDown) && i.modifiers.is_none()) && !indices.is_empty() {
                             let page_size = (area_res.inner_rect.height() / row_height) as usize;
-                            command = Some(Message::Select(
-                                indices[(idx.saturating_add(page_size)).min(indices.len() - 1)],
-                                false,
-                            ));
+                            command = Some(Message::Select(indices[(idx.saturating_add(page_size)).min(indices.len() - 1)], false));
                         }
                     }
                 }
@@ -570,10 +486,7 @@ impl FileView {
                                     file.read_to_end(&mut data).unwrap_or_default();
 
                                     let entry = FileEntry {
-                                        path: file
-                                            .enclosed_name()
-                                            .unwrap_or(Path::new("unknown"))
-                                            .to_path_buf(),
+                                        path: file.enclosed_name().unwrap_or(Path::new("unknown")).to_path_buf(),
                                         file_data: Some(data),
                                         read_sauce: false,
                                         sauce: None,
@@ -643,9 +556,7 @@ fn get_file_name(path: &Path) -> &str {
     if path.is_dir() && is_drive_root(path) {
         return path.to_str().unwrap_or_default();
     }
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default()
+    path.file_name().and_then(|name| name.to_str()).unwrap_or_default()
 }
 
 #[cfg(windows)]
@@ -670,10 +581,7 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
     };
 
     fs::read_dir(path).map(|paths| {
-        let mut result: Vec<PathBuf> = paths
-            .filter_map(|result| result.ok())
-            .map(|entry| entry.path())
-            .collect();
+        let mut result: Vec<PathBuf> = paths.filter_map(|result| result.ok()).map(|entry| entry.path()).collect();
         result.sort_by(|a, b| {
             let da = a.is_dir();
             let db = b.is_dir();

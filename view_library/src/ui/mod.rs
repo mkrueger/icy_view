@@ -9,7 +9,14 @@ use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
-use std::{env::current_dir, io, path::PathBuf, sync::{Arc, Mutex}, thread::JoinHandle, time::Duration};
+use std::{
+    env::current_dir,
+    io,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
+    time::Duration,
+};
 
 use self::file_view::{FileEntry, FileView, Message};
 
@@ -65,12 +72,10 @@ impl App for MainWindow {
             .outer_margin(egui::style::Margin::same(0.0))
             .inner_margin(egui::style::Margin::same(0.0))
             .fill(Color32::BLACK);
-        egui::CentralPanel::default()
-            .frame(frame_no_margins)
-            .show(ctx, |ui| {
-                ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
-                self.paint_main_area(ui)
-            });
+        egui::CentralPanel::default().frame(frame_no_margins).show(ctx, |ui| {
+            ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
+            self.paint_main_area(ui)
+        });
         self.in_scroll &= self.file_view.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
@@ -101,9 +106,7 @@ impl App for MainWindow {
 
         self.toasts.show(ctx);
 
-        if ctx.input(|i| {
-            i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt
-        }) {
+        if ctx.input(|i| i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt) {
             self.full_screen_mode = !self.full_screen_mode;
             frame.set_fullscreen(self.full_screen_mode);
         }
@@ -175,9 +178,7 @@ impl MainWindow {
             .outer_margin(egui::style::Margin::same(0.0))
             .inner_margin(egui::style::Margin::same(0.0))
             .fill(Color32::BLACK);
-        egui::CentralPanel::default()
-            .frame(frame_no_margins)
-            .show(ctx, |ui| self.paint_main_area(ui));
+        egui::CentralPanel::default().frame(frame_no_margins).show(ctx, |ui| self.paint_main_area(ui));
         self.in_scroll &= self.file_view.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
@@ -213,13 +214,10 @@ impl MainWindow {
                         }
                     }
                 } else {
-                    self.error_text =
-                        Some(fl!(crate::LANGUAGE_LOADER, "error-never-happens").to_string());
+                    self.error_text = Some(fl!(crate::LANGUAGE_LOADER, "error-never-happens").to_string());
                 }
             } else {
-                ui.centered_and_justified(|ui| {
-                    ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image"))
-                });
+                ui.centered_and_justified(|ui| ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image")));
             }
             return;
         }
@@ -259,9 +257,7 @@ impl MainWindow {
                 self.in_scroll = false;
             }
 
-            if ui
-                .input(|i: &egui::InputState| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.ctrl)
-            {
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::ArrowUp) && i.modifiers.ctrl) {
                 self.key_vel = 500.0;
                 self.in_scroll = false;
             }
@@ -271,8 +267,7 @@ impl MainWindow {
                 self.in_scroll = false;
             }
 
-            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl)
-            {
+            if ui.input(|i: &egui::InputState| i.key_pressed(egui::Key::PageUp) && i.modifiers.ctrl) {
                 self.key_vel = 5000.0;
                 self.in_scroll = false;
             }
@@ -294,9 +289,7 @@ impl MainWindow {
             if response.drag_started_by(egui::PointerButton::Primary) {
                 self.drag_started = false;
                 if let Some(mouse_pos) = response.interact_pointer_pos() {
-                    if !calc.vert_scrollbar_rect.contains(mouse_pos)
-                        && !calc.horiz_scrollbar_rect.contains(mouse_pos)
-                    {
+                    if !calc.vert_scrollbar_rect.contains(mouse_pos) && !calc.horiz_scrollbar_rect.contains(mouse_pos) {
                         self.drag_started = true;
                         ui.output_mut(|o| o.cursor_icon = CursorIcon::Grab);
                     }
@@ -333,19 +326,13 @@ impl MainWindow {
                     ui.vertical_centered(|ui| {
                         if let Some(idx) = self.file_view.selected_file {
                             if let Some(file_name) = self.file_view.files[idx].path.file_name() {
-                                ui.heading(fl!(
-                                    crate::LANGUAGE_LOADER,
-                                    "message-file-not-supported",
-                                    name = file_name.to_string_lossy()
-                                ));
+                                ui.heading(fl!(crate::LANGUAGE_LOADER, "message-file-not-supported", name = file_name.to_string_lossy()));
                             }
                         }
 
                         ui.add_space(8.0);
                         if ui
-                            .button(RichText::heading(
-                                fl!(crate::LANGUAGE_LOADER, "button-load-anyways").into(),
-                            ))
+                            .button(RichText::heading(fl!(crate::LANGUAGE_LOADER, "button-load-anyways").into()))
                             .clicked()
                         {
                             self.handle_command(Some(Message::Select(file, true)));
@@ -361,11 +348,7 @@ impl MainWindow {
         }
     }
 
-    fn show_buffer_view(
-        &mut self,
-        ui: &mut egui::Ui,
-        monitor_settings: MonitorSettings,
-    ) -> (egui::Response, icy_engine_egui::TerminalCalc) {
+    fn show_buffer_view(&mut self, ui: &mut egui::Ui, monitor_settings: MonitorSettings) -> (egui::Response, icy_engine_egui::TerminalCalc) {
         let w = (ui.available_width() / 8.0).floor();
         let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
         let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
@@ -389,8 +372,7 @@ impl MainWindow {
             ..Default::default()
         };
 
-        let (response, calc) =
-            icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+        let (response, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
         (response, calc)
     }
 
@@ -411,8 +393,7 @@ impl MainWindow {
 
         if open_path {
             self.reset_state();
-            self.file_view
-                .set_path(self.file_view.files[file].path.clone());
+            self.file_view.set_path(self.file_view.files[file].path.clone());
         }
 
         open_path
@@ -433,15 +414,11 @@ impl MainWindow {
                 String::new()
             };
             if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
-                self.image_loading_thread = Some(entry.read_image(|path, data| {
-                    egui_extras::RetainedImage::from_image_bytes(path.to_string_lossy(), data)
-                }));
+                self.image_loading_thread = Some(entry.read_image(|path, data| egui_extras::RetainedImage::from_image_bytes(path.to_string_lossy(), data)));
                 return;
             }
             if ext == "svg" {
-                self.image_loading_thread = Some(entry.read_image(|path, data| {
-                    egui_extras::RetainedImage::from_svg_bytes(path.to_string_lossy(), data)
-                }));
+                self.image_loading_thread = Some(entry.read_image(|path, data| egui_extras::RetainedImage::from_svg_bytes(path.to_string_lossy(), data)));
                 return;
             }
             if ext == "icyanim" {
@@ -473,9 +450,7 @@ impl MainWindow {
 
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
-                || icy_engine::FORMATS
-                    .iter()
-                    .any(|f| f.get_file_extension().to_ascii_lowercase() == ext.as_str())
+                || icy_engine::FORMATS.iter().any(|f| f.get_file_extension().to_ascii_lowercase() == ext.as_str())
                 || !EXT_BLACK_LIST.contains(&ext.as_str()) && !is_binary(entry)
             {
                 match entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
@@ -558,8 +533,7 @@ impl MainWindow {
                     self.help_dialog = Some(help_dialog::HelpDialog::new());
                 }
                 Message::ChangeScrollSpeed => {
-                    self.file_view.scroll_speed =
-                        (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
+                    self.file_view.scroll_speed = (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
 
                     match self.file_view.scroll_speed {
                         0 => {

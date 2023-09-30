@@ -23,10 +23,7 @@ fn main() {
         &format!("iCY VIEW {}", env!("CARGO_PKG_VERSION")),
         options,
         Box::new(|cc| {
-            let gl = cc
-                .gl
-                .as_ref()
-                .expect("You need to run eframe with the glow backend");
+            let gl = cc.gl.as_ref().expect("You need to run eframe with the glow backend");
             let mut fd = MainWindow::new(gl, args.path);
             let cmd = fd.file_view.refresh();
             fd.handle_command(cmd);
