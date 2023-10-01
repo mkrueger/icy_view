@@ -80,7 +80,7 @@ impl FileEntry {
         }
         self.read_sauce = true;
 
-        if let Ok(Ok(data)) = self.get_data(|_, data| SauceData::extract(data)) {
+        if let Ok(Ok(Some(data))) = self.get_data(|_, data| SauceData::extract(data)) {
             self.sauce = Some(data);
         }
     }
