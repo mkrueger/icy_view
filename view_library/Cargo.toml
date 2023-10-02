@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 eframe = "0.23"
-egui_extras = { version="0.23.0", features = ["svg", "image"] }
+egui_extras = { version="0.23.0", features = ["all_loaders"] }
 egui_glow = "0.23.0"
 glow = "0.12.2"
 memmap = "0.7.0"

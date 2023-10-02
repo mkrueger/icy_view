@@ -1,20 +1,17 @@
 use eframe::{
-    egui::{self, Context, CursorIcon, RichText, ScrollArea},
-    epaint::{Color32, Vec2},
+    egui::{self, Context, CursorIcon, RichText, ScrollArea, Image},
+    epaint::{Color32, Vec2, Rect},
     App, Frame,
 };
 
-use egui_extras::RetainedImage;
 use i18n_embed_fl::fl;
 use icy_engine::Buffer;
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
 use std::{
     env::current_dir,
-    io,
     path::PathBuf,
     sync::{Arc, Mutex},
-    thread::JoinHandle,
     time::Duration,
 };
 
@@ -24,7 +21,7 @@ mod file_view;
 mod help_dialog;
 mod sauce_dialog;
 
-pub struct MainWindow {
+pub struct MainWindow<'a> {
     buffer_view: Arc<eframe::epaint::mutex::Mutex<BufferView>>,
     pub file_view: FileView,
     pub in_scroll: bool,
@@ -39,8 +36,7 @@ pub struct MainWindow {
     full_screen_mode: bool,
     loaded_buffer: bool,
 
-    image_loading_thread: Option<JoinHandle<io::Result<RetainedImage>>>,
-    retained_image: Option<RetainedImage>,
+    retained_image: Option<Image<'a>>,
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
     help_dialog: Option<help_dialog::HelpDialog>,
@@ -57,7 +53,7 @@ const EXT_WHITE_LIST: [&str; 5] = ["seq", "diz", "nfo", "ice", "bbs"];
 
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
 
-impl App for MainWindow {
+impl<'a> App for MainWindow<'a> {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
         egui::SidePanel::left("bottom_panel")
             .default_width(ctx.available_rect().width() * 3.0 / 2.0)
@@ -126,10 +122,11 @@ impl App for MainWindow {
     }
 }
 
-impl MainWindow {
+impl<'a> MainWindow<'a> {
     pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
         let mut view = BufferView::new(gl);
         view.interactive = false;
+
         view.get_buffer_mut().is_terminal_buffer = false;
         view.get_caret_mut().set_is_visible(false);
         if let Some(path) = &initial_path {
@@ -139,11 +136,10 @@ impl MainWindow {
                 }
             }
         }
-        Self {
+        Self { 
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
             file_view: FileView::new(initial_path),
             in_scroll: false,
-            image_loading_thread: None,
             retained_image: None,
             full_screen_mode: false,
             error_text: None,
@@ -196,7 +192,7 @@ impl MainWindow {
             ui.colored_label(ui.style().visuals.error_fg_color, err);
             return;
         }
-
+/*
         if let Some(image_loading_thread) = &self.image_loading_thread {
             if image_loading_thread.is_finished() {
                 if let Some(img) = self.image_loading_thread.take() {
@@ -220,11 +216,13 @@ impl MainWindow {
                 ui.centered_and_justified(|ui| ui.heading(fl!(crate::LANGUAGE_LOADER, "message-loading-image")));
             }
             return;
-        }
+        } */
 
         if let Some(img) = &self.retained_image {
             ScrollArea::both().show(ui, |ui| {
-                img.show(ui);
+                let size = img.load_and_calc_size(ui, ui.available_size()).unwrap();
+                let rect: Rect = egui::Rect::from_min_size(ui.min_rect().min, size);
+                img.paint_at(ui, rect);
             });
             return;
         }
@@ -412,15 +410,21 @@ impl MainWindow {
                 ext2.to_str().unwrap_or_default().to_string()
             } else {
                 String::new()
-            };
+            }; 
             if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
-                self.image_loading_thread = Some(entry.read_image(|path, data| egui_extras::RetainedImage::from_image_bytes(path.to_string_lossy(), data)));
+                let image = entry.read_image(|path: &PathBuf, data| {
+                    let file_name = path.to_string_lossy().to_string();
+                    let img = Image::from_bytes(file_name, data);
+                    img.show_loading_spinner(true)
+                }).unwrap();
+                self.retained_image = Some(image);
                 return;
             }
+            /* 
             if ext == "svg" {
                 self.image_loading_thread = Some(entry.read_image(|path, data| egui_extras::RetainedImage::from_svg_bytes(path.to_string_lossy(), data)));
                 return;
-            }
+            }*/
             if ext == "icyanim" {
                 let anim = entry.get_data(|path, data| match String::from_utf8(data.to_vec()) {
                     Ok(data) => {
@@ -469,7 +473,6 @@ impl MainWindow {
     }
 
     fn reset_state(&mut self) {
-        self.image_loading_thread = None;
         self.retained_image = None;
         self.error_text = None;
         self.loaded_buffer = false;

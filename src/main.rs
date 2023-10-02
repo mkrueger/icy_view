@@ -24,6 +24,8 @@ fn main() {
         options,
         Box::new(|cc| {
             let gl = cc.gl.as_ref().expect("You need to run eframe with the glow backend");
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+
             let mut fd = MainWindow::new(gl, args.path);
             let cmd = fd.file_view.refresh();
             fd.handle_command(cmd);

@@ -1,19 +1,17 @@
 use directories::UserDirs;
 use eframe::{
-    egui::{self, Layout, RichText, Sense, WidgetText},
+    egui::{self, Layout, RichText, Sense, WidgetText, Image},
     epaint::{FontFamily, FontId, Rounding},
 };
 use egui::{ScrollArea, TextEdit, Ui};
-use egui_extras::RetainedImage;
 use i18n_embed_fl::fl;
 use icy_engine::SauceData;
 
 use std::{
     env,
     fs::{self, File},
-    io::{self, Error, Read},
+    io::{Error, Read},
     path::{Path, PathBuf},
-    thread::{self, JoinHandle},
 };
 
 pub enum Message {
@@ -48,25 +46,14 @@ impl FileEntry {
         Ok(func(&self.path, &mmap))
     }
 
-    pub fn read_image(&self, func: fn(&PathBuf, &[u8]) -> Result<RetainedImage, String>) -> JoinHandle<io::Result<RetainedImage>> {
+    pub fn read_image<'a>(&self, func: fn(&PathBuf, Vec<u8>) -> Image<'a>) -> anyhow::Result<Image<'a>> {
         let path = self.path.clone();
         if let Some(data) = &self.file_data {
             let data = data.clone();
-            thread::spawn(move || {
-                if let Ok(ri) = func(&path, &data) {
-                    return Ok(ri);
-                }
-                Err(io::Error::new(io::ErrorKind::Other, "can't read image"))
-            })
+            Ok(func(&path, data))
         } else {
-            thread::spawn(move || {
-                let file = File::open(&path)?;
-                let mmap = unsafe { memmap::MmapOptions::new().map(&file)? };
-                if let Ok(ri) = func(&path, &mmap) {
-                    return Ok(ri);
-                }
-                Err(io::Error::new(io::ErrorKind::Other, "can't read image"))
-            })
+            let data = fs::read(&path)?;
+            Ok(func(&path, data))
         }
     }
 
