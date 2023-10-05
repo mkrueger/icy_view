@@ -361,7 +361,8 @@ impl<'a> MainWindow<'a> {
         } else {
             self.cur_scroll_pos.round()
         };
-        let opt = icy_engine_egui::TerminalOptions {
+    
+        let mut opt = icy_engine_egui::TerminalOptions {
             stick_to_bottom: false,
             scale: Some(Vec2::new(scalex, scaley)),
             use_terminal_height: false,
@@ -369,6 +370,24 @@ impl<'a> MainWindow<'a> {
             monitor_settings,
             ..Default::default()
         };
+
+        match self.buffer_view.lock().get_buffer().buffer_type {
+            icy_engine::BufferType::Petscii => {
+                opt.monitor_settings.border_color = icy_engine::Color::new(0x70, 0x7c, 0xE6);
+            }
+
+            icy_engine::BufferType::Unicode |
+            icy_engine::BufferType::CP437 =>  {
+                opt.monitor_settings.border_color = icy_engine::Color::new(64, 69, 74);
+            }
+            icy_engine::BufferType::Atascii => {
+                opt.monitor_settings.border_color = icy_engine::Color::new(9, 0x51, 0x83);
+
+            }
+            icy_engine::BufferType::Viewdata => {
+                opt.monitor_settings.border_color = icy_engine::Color::new(0, 0, 0);
+            }
+        }
 
         let (response, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
         (response, calc)
