@@ -338,7 +338,7 @@ impl<'a> MainWindow<'a> {
                     ui.add_space(ui.available_height() / 3.0);
                     ui.vertical_centered(|ui| {
                         if let Some(idx) = self.file_view.selected_file {
-                            if let Some(file_name) = self.file_view.files[idx].path.file_name() {
+                            if let Some(file_name) = self.file_view.files[idx].file_info.path.file_name() {
                                 ui.heading(fl!(crate::LANGUAGE_LOADER, "message-file-not-supported", name = file_name.to_string_lossy()));
                             }
                         }
@@ -412,7 +412,7 @@ impl<'a> MainWindow<'a> {
         }
 
         let open_path = if self.file_view.files[file].is_file() {
-            if let Some(ext) = self.file_view.files[file].path.extension() {
+            if let Some(ext) = self.file_view.files[file].file_info.path.extension() {
                 ext == "zip"
             } else {
                 false
@@ -423,7 +423,7 @@ impl<'a> MainWindow<'a> {
 
         if open_path {
             self.reset_state();
-            self.file_view.set_path(self.file_view.files[file].path.clone());
+            self.file_view.set_path(self.file_view.files[file].file_info.path.clone());
         }
 
         open_path
@@ -437,7 +437,7 @@ impl<'a> MainWindow<'a> {
         self.last_scroll_pos = -1.0;
         let entry = &self.file_view.files[file];
         if entry.is_file() {
-            let ext = if let Some(ext) = entry.path.extension() {
+            let ext = if let Some(ext) = entry.file_info.path.extension() {
                 let ext2 = ext.to_ascii_lowercase();
                 ext2.to_str().unwrap_or_default().to_string()
             } else {

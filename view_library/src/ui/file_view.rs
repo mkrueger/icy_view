@@ -28,37 +28,36 @@ pub enum Message {
 
 #[derive(Clone)]
 pub struct FileEntry {
-    pub path: PathBuf,
+    pub file_info: FileInfo,
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
-    pub sauce: Option<SauceData>,
-    is_dir: Option<bool>,
+    pub sauce: Option<SauceData>
 }
 
 impl FileEntry {
     pub fn get_data<T>(&self, func: fn(&PathBuf, &[u8]) -> T) -> anyhow::Result<T> {
         if let Some(data) = &self.file_data {
-            return Ok(func(&self.path, data));
+            return Ok(func(&self.file_info.path, data));
         }
 
-        let file = File::open(&self.path)?;
+        let file = File::open(&self.file_info.path)?;
         let mmap = unsafe { memmap::MmapOptions::new().map(&file)? };
-        Ok(func(&self.path, &mmap))
+        Ok(func(&self.file_info.path, &mmap))
     }
 
     pub fn read_image<'a>(&self, func: fn(&PathBuf, Vec<u8>) -> Image<'a>) -> anyhow::Result<Image<'a>> {
-        let path = self.path.clone();
+        let path = self.file_info.clone();
         if let Some(data) = &self.file_data {
             let data = data.clone();
-            Ok(func(&path, data))
+            Ok(func(&path.path, data))
         } else {
-            let data = fs::read(&path)?;
-            Ok(func(&path, data))
+            let data = fs::read(&path.path)?;
+            Ok(func(&path.path, data))
         }
     }
 
     pub fn is_file(&self) -> bool {
-        self.file_data.is_some() || self.path.is_file()
+        self.file_data.is_some() || !self.file_info.dir
     }
 
     fn load_sauce(&mut self) {
@@ -73,14 +72,11 @@ impl FileEntry {
     }
 
     pub(crate) fn is_dir(&self) -> bool {
-        if let Some(is_dir) = self.is_dir {
-            return is_dir;
-        }
-        self.path.is_dir()
+        self.file_info.dir
     }
 
     fn is_dir_or_archive(&self) -> bool {
-        if let Some(ext) = self.path.extension() {
+        if let Some(ext) = self.file_info.path.extension() {
             if ext.to_string_lossy().to_ascii_lowercase() == "zip" {
                 return true;
             }
@@ -259,7 +255,7 @@ impl FileView {
                     return true;
                 }
             }
-            p.path.to_string_lossy().to_lowercase().contains(&filter)
+            p.file_info.path.to_string_lossy().to_lowercase().contains(&filter)
         });
 
         let mut indices = Vec::new();
@@ -280,14 +276,14 @@ impl FileView {
                 }
 
                 let label = if !ui.is_rect_visible(rect) {
-                    get_file_name(&entry.path).to_string()
+                    get_file_name(&entry.file_info.path).to_string()
                 } else { 
                     match entry.is_dir_or_archive() {
                         true => "🗀 ",
                         false => "🗋 ",
                     }
                     .to_string()
-                        + get_file_name(&entry.path)
+                        + get_file_name(&entry.file_info.path)
                 };
 
                 let font_id = FontId::new(14.0, FontFamily::Proportional);
@@ -478,11 +474,10 @@ impl FileView {
                                     file.read_to_end(&mut data).unwrap_or_default();
 
                                     let entry = FileEntry {
-                                        path: file.enclosed_name().unwrap_or(Path::new("unknown")).to_path_buf(),
+                                        file_info: FileInfo { path: file.enclosed_name().unwrap_or(Path::new("unknown")).to_path_buf(), dir : file.is_dir() },
                                         file_data: Some(data),
                                         read_sauce: false,
                                         sauce: None,
-                                        is_dir: Some(file.is_dir()),
                                     };
                                     self.files.push(entry);
                                 }
@@ -507,11 +502,10 @@ impl FileView {
                     self.files = folders
                         .iter()
                         .map(|f| FileEntry {
-                            path: f.clone(),
+                            file_info: f.clone(),
                             read_sauce: false,
                             sauce: None,
                             file_data: None,
-                            is_dir: None,
                         })
                         .collect();
                 }
@@ -524,7 +518,7 @@ impl FileView {
 
         if let Some(file) = &self.pre_select_file {
             for (i, entry) in self.files.iter().enumerate() {
-                if let Some(file_name) = entry.path.file_name() {
+                if let Some(file_name) = entry.file_info.path.file_name() {
                     if file_name.to_string_lossy() == *file {
                         return Message::Select(i, false).into();
                     }
@@ -556,53 +550,77 @@ extern "C" {
     pub fn GetLogicalDrives() -> u32;
 }
 
-fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
-    #[cfg(windows)]
-    let drives = {
-        let mut drives = unsafe { GetLogicalDrives() };
-        let mut letter = b'A';
-        let mut drive_names = Vec::new();
-        while drives > 0 {
-            if drives & 1 != 0 {
-                drive_names.push(format!("{}:\\", letter as char).into());
+fn read_folder(path: &Path) -> Result<Vec<FileInfo>, Error> {
+    fs::read_dir(path).map(|entries| {
+      let mut file_infos: Vec<FileInfo> = entries
+        .filter_map(|result| result.ok())
+        .filter_map(|entry| {
+          let info = FileInfo::new(entry.path());
+          if !info.dir {
+            // Do not show system files.
+            if !info.path.is_file() {
+              return None;
             }
-            drives >>= 1;
-            letter += 1;
+          }
+
+          #[cfg(unix)]
+          if info.get_file_name().starts_with('.') {
+            return None;
+          }
+
+          Some(info)
+        })
+        .collect();
+
+      // Sort keeping folders before files.
+      file_infos.sort_by(|a, b| match a.dir == b.dir {
+        true => a.path.file_name().cmp(&b.path.file_name()),
+        false => b.dir.cmp(&a.dir),
+      });
+
+      #[cfg(windows)]
+      let file_infos = match self.show_drives {
+        true => {
+          let drives = get_drives();
+          let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
+          for drive in drives {
+            infos.push(FileInfo {
+              path: drive,
+              dir: true,
+            });
+          }
+          infos.append(&mut file_infos);
+          infos
         }
-        drive_names
-    };
+        false => file_infos,
+      };
 
-    fs::read_dir(path).map(|paths| {
-        let mut result: Vec<PathBuf> = paths.filter_map(|result| result.ok()).map(|entry| entry.path()).collect();
-        result.sort_by(|a, b| {
-            let da = a.is_dir();
-            let db = b.is_dir();
-            match da == db {
-                true => a.file_name().cmp(&b.file_name()),
-                false => db.cmp(&da),
-            }
-        });
-
-        #[cfg(windows)]
-        let result = {
-            let mut items = drives;
-            items.reserve(result.len());
-            items.append(&mut result);
-            items
-        };
-
-        #[cfg(unix)]
-        return result
-            .into_iter()
-            .filter(|path| {
-                #[cfg(unix)]
-                if get_file_name(path).starts_with('.') {
-                    return false;
-                }
-                true
-            })
-            .collect();
-        #[cfg(windows)]
-        result
+      file_infos
     })
+  }
+
+#[derive(Clone, Debug, Default)]
+pub struct FileInfo {
+    pub path: PathBuf,
+    pub dir: bool,
 }
+
+impl FileInfo {
+    pub fn new(path: PathBuf) -> Self {
+      let dir = path.is_dir();
+      Self { path, dir }
+    }
+
+    pub fn get_file_name(&self) -> &str {
+        #[cfg(windows)]
+        if info.dir && is_drive_root(&info.path) {
+          return info.path.to_str().unwrap_or_default();
+        }
+        self
+          .path
+          .file_name()
+          .and_then(|name| name.to_str())
+          .unwrap_or_default()
+      }
+}
+  
