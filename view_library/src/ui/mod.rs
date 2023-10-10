@@ -1,6 +1,6 @@
 use eframe::{
-    egui::{self, Context, CursorIcon, RichText, ScrollArea, Image},
-    epaint::{Color32, Vec2, Rect},
+    egui::{self, Context, CursorIcon, Image, RichText, ScrollArea},
+    epaint::{Color32, Rect, Vec2},
     App, Frame,
 };
 
@@ -136,7 +136,7 @@ impl<'a> MainWindow<'a> {
                 }
             }
         }
-        Self { 
+        Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
             file_view: FileView::new(initial_path),
             in_scroll: false,
@@ -158,9 +158,24 @@ impl<'a> MainWindow<'a> {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.in_scroll = false;
+        self.retained_image = None;
+        self.error_text = None;
+        self.loaded_buffer = false;
+        self.sauce_dialog = None;
+        self.help_dialog = None;
+        self.drag_started = false;
+        self.cur_scroll_pos = 0.0;
+        self.drag_vel = 0.0;
+        self.key_vel =0.0;
+        self.last_scroll_pos = 1.0;
+        self.opened_file = None;
+        self.animation = None;
+    }
+
     pub fn show_file_chooser(&mut self, ctx: &Context) -> bool {
         self.is_closed = false;
-        self.opened_file = None;
         egui::SidePanel::left("bottom_panel")
             .default_width(ctx.available_rect().width() * 3.0 / 2.0)
             .exact_width(250.0)
@@ -192,7 +207,7 @@ impl<'a> MainWindow<'a> {
             ui.colored_label(ui.style().visuals.error_fg_color, err);
             return;
         }
-/*
+        /*
         if let Some(image_loading_thread) = &self.image_loading_thread {
             if image_loading_thread.is_finished() {
                 if let Some(img) = self.image_loading_thread.take() {
@@ -361,7 +376,7 @@ impl<'a> MainWindow<'a> {
         } else {
             self.cur_scroll_pos.round()
         };
-    
+
         let mut opt = icy_engine_egui::TerminalOptions {
             stick_to_bottom: false,
             scale: Some(Vec2::new(scalex, scaley)),
@@ -376,13 +391,11 @@ impl<'a> MainWindow<'a> {
                 opt.monitor_settings.border_color = icy_engine::Color::new(0x70, 0x7c, 0xE6);
             }
 
-            icy_engine::BufferType::Unicode |
-            icy_engine::BufferType::CP437 =>  {
+            icy_engine::BufferType::Unicode | icy_engine::BufferType::CP437 => {
                 opt.monitor_settings.border_color = icy_engine::Color::new(64, 69, 74);
             }
             icy_engine::BufferType::Atascii => {
                 opt.monitor_settings.border_color = icy_engine::Color::new(9, 0x51, 0x83);
-
             }
             icy_engine::BufferType::Viewdata => {
                 opt.monitor_settings.border_color = icy_engine::Color::new(0, 0, 0);
@@ -429,17 +442,19 @@ impl<'a> MainWindow<'a> {
                 ext2.to_str().unwrap_or_default().to_string()
             } else {
                 String::new()
-            }; 
+            };
             if ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" {
-                let image = entry.read_image(|path: &PathBuf, data| {
-                    let file_name = path.to_string_lossy().to_string();
-                    let img = Image::from_bytes(file_name, data);
-                    img.show_loading_spinner(true)
-                }).unwrap();
+                let image = entry
+                    .read_image(|path: &PathBuf, data| {
+                        let file_name = path.to_string_lossy().to_string();
+                        let img = Image::from_bytes(file_name, data);
+                        img.show_loading_spinner(true)
+                    })
+                    .unwrap();
                 self.retained_image = Some(image);
                 return;
             }
-            /* 
+            /*
             if ext == "svg" {
                 self.image_loading_thread = Some(entry.read_image(|path, data| egui_extras::RetainedImage::from_svg_bytes(path.to_string_lossy(), data)));
                 return;

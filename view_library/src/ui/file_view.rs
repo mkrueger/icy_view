@@ -1,6 +1,6 @@
 use directories::UserDirs;
 use eframe::{
-    egui::{self, Layout, RichText, Sense, WidgetText, Image},
+    egui::{self, Image, Layout, RichText, Sense, WidgetText},
     epaint::{FontFamily, FontId, Rounding},
 };
 use egui::{ScrollArea, TextEdit, Ui};
