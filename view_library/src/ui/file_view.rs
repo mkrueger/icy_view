@@ -41,9 +41,8 @@ impl FileEntry {
             return Ok(func(&self.path, data));
         }
 
-        let file = File::open(&self.path)?;
-        let mmap = unsafe { memmap::MmapOptions::new().map(&file)? };
-        Ok(func(&self.path, &mmap))
+        let file = fs::read(&self.path)?;
+        Ok(func(&self.path, &file))
     }
 
     pub fn read_image<'a>(&self, func: fn(&PathBuf, Vec<u8>) -> Image<'a>) -> anyhow::Result<Image<'a>> {
@@ -552,6 +551,7 @@ extern "C" {
 }
 
 fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
+    let instant = std::time::Instant::now();
     #[cfg(windows)]
     let drives = {
         let mut drives = unsafe { GetLogicalDrives() };
@@ -568,6 +568,7 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
     };
 
     fs::read_dir(path).map(|paths| {
+        println!("read dir!! {}ms", instant.elapsed().as_millis());
         let mut result: Vec<PathBuf> = paths.filter_map(|result| result.ok()).map(|entry| entry.path()).collect();
         result.sort_by(|a, b| {
             let da = a.is_dir();
@@ -577,6 +578,7 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
                 false => db.cmp(&da),
             }
         });
+        println!("sort {}ms", instant.elapsed().as_millis());
 
         #[cfg(windows)]
         let result = {
@@ -585,8 +587,9 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
             items.append(&mut result);
             items
         };
+        println!("result1 {}ms", instant.elapsed().as_millis());
 
-        result
+        let res = result
             .into_iter()
             .filter(|path| {
                 if !path.is_dir() {
@@ -601,6 +604,8 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
                 }
                 true
             })
-            .collect()
+            .collect();
+        println!("result2 {}ms", instant.elapsed().as_millis());
+        res 
     })
 }
