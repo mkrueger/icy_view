@@ -266,6 +266,7 @@ impl FileView {
         let area_res = area.show(ui, |ui| {
             for (real_idx, entry) in filtered_entries {
                 let (id, rect) = ui.allocate_space([ui.available_width(), row_height].into());
+
                 indices.push(real_idx);
                 let is_selected = Some(real_idx) == self.selected_file;
                 let text_color = if is_selected { strong_color } else { text_color };
@@ -278,12 +279,16 @@ impl FileView {
                         .rect_filled(rect.expand(1.0), Rounding::same(4.0), ui.style().visuals.extreme_bg_color);
                 }
 
-                let label = match entry.is_dir_or_archive() {
-                    true => "🗀 ",
-                    false => "🗋 ",
-                }
-                .to_string()
-                    + get_file_name(&entry.path);
+                let label = if !ui.is_rect_visible(rect) {
+                    get_file_name(&entry.path).to_string()
+                } else { 
+                    match entry.is_dir_or_archive() {
+                        true => "🗀 ",
+                        false => "🗋 ",
+                    }
+                    .to_string()
+                        + get_file_name(&entry.path)
+                };
 
                 let font_id = FontId::new(14.0, FontFamily::Proportional);
                 let text: WidgetText = label.into();
