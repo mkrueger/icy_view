@@ -550,6 +550,21 @@ extern "C" {
     pub fn GetLogicalDrives() -> u32;
 }
 
+#[cfg(windows)]
+fn get_drives() -> Vec<PathBuf> {
+  let mut drive_names = Vec::new();
+  let mut drives = unsafe { GetLogicalDrives() };
+  let mut letter = b'A';
+  while drives > 0 {
+    if drives & 1 != 0 {
+      drive_names.push(format!("{}:\\", letter as char).into());
+    }
+    drives >>= 1;
+    letter += 1;
+  }
+  drive_names
+}
+
 fn read_folder(path: &Path) -> Result<Vec<FileInfo>, Error> {
     fs::read_dir(path).map(|entries| {
       let mut file_infos: Vec<FileInfo> = entries
@@ -579,8 +594,7 @@ fn read_folder(path: &Path) -> Result<Vec<FileInfo>, Error> {
       });
 
       #[cfg(windows)]
-      let file_infos = match self.show_drives {
-        true => {
+      let file_infos = {
           let drives = get_drives();
           let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
           for drive in drives {
@@ -591,9 +605,7 @@ fn read_folder(path: &Path) -> Result<Vec<FileInfo>, Error> {
           }
           infos.append(&mut file_infos);
           infos
-        }
-        false => file_infos,
-      };
+        };
 
       file_infos
     })
@@ -613,8 +625,8 @@ impl FileInfo {
 
     pub fn get_file_name(&self) -> &str {
         #[cfg(windows)]
-        if info.dir && is_drive_root(&info.path) {
-          return info.path.to_str().unwrap_or_default();
+        if self.dir && is_drive_root(&self.path) {
+          return self.path.to_str().unwrap_or_default();
         }
         self
           .path
