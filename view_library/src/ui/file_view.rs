@@ -586,21 +586,18 @@ fn read_folder(path: &Path) -> Result<Vec<PathBuf>, Error> {
             items
         };
 
-        result
+        #[cfg(unix)]
+        return result
             .into_iter()
             .filter(|path| {
-                if !path.is_dir() {
-                    // Do not show system files.
-                    if !path.is_file() {
-                        return false;
-                    }
-                }
                 #[cfg(unix)]
                 if get_file_name(path).starts_with('.') {
                     return false;
                 }
                 true
             })
-            .collect()
+            .collect();
+        #[cfg(windows)]
+        result
     })
 }
