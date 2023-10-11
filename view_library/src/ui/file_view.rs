@@ -1,6 +1,6 @@
 use directories::UserDirs;
 use eframe::{
-    egui::{self, Image, Layout, RichText, Sense, WidgetText},
+    egui::{self, Image, Layout, RichText, Sense, TopBottomPanel, WidgetText},
     epaint::{FontFamily, FontId, Rounding},
 };
 use egui::{ScrollArea, TextEdit, Ui};
@@ -31,7 +31,7 @@ pub struct FileEntry {
     pub file_info: FileInfo,
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
-    pub sauce: Option<SauceData>
+    pub sauce: Option<SauceData>,
 }
 
 impl FileEntry {
@@ -144,13 +144,29 @@ impl FileView {
 
     pub(crate) fn show_ui(&mut self, ui: &mut Ui, file_chooser: bool) -> Option<Message> {
         let mut command: Option<Message> = None;
-        ui.add_space(4.0);
 
+        if file_chooser {
+            TopBottomPanel::bottom("bottom_buttons").show_inside(ui, |ui| {
+                ui.set_width(350.0);
+                ui.add_space(4.0);
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-open")).clicked() {
+                        if let Some(sel) = self.selected_file {
+                            command = Some(Message::Open(sel));
+                        }
+                    }
+                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-cancel")).clicked() {
+                        command = Some(Message::Cancel);
+                    }
+                });
+            });
+        }
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.add(
                 TextEdit::singleline(&mut self.filter)
                     .hint_text(fl!(crate::LANGUAGE_LOADER, "filter-entries-hint-text"))
-                    .desired_width(f32::INFINITY),
+                    .desired_width(300.),
             );
             let response = ui.button("🗙").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
             if response.clicked() {
@@ -277,7 +293,7 @@ impl FileView {
 
                 let label = if !ui.is_rect_visible(rect) {
                     get_file_name(&entry.file_info.path).to_string()
-                } else { 
+                } else {
                     match entry.is_dir_or_archive() {
                         true => "🗀 ",
                         false => "🗋 ",
@@ -356,22 +372,6 @@ impl FileView {
                 }
             }
         });
-
-        if file_chooser {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-open")).clicked() {
-                        if let Some(sel) = self.selected_file {
-                            command = Some(Message::Open(sel));
-                        }
-                    }
-                    if ui.button(fl!(crate::LANGUAGE_LOADER, "button-cancel")).clicked() {
-                        command = Some(Message::Cancel);
-                    }
-                });
-            });
-        }
 
         if ui.is_enabled() {
             if ui.input(|i| i.key_pressed(egui::Key::PageUp) && i.modifiers.alt) {
@@ -474,7 +474,10 @@ impl FileView {
                                     file.read_to_end(&mut data).unwrap_or_default();
 
                                     let entry = FileEntry {
-                                        file_info: FileInfo { path: file.enclosed_name().unwrap_or(Path::new("unknown")).to_path_buf(), dir : file.is_dir() },
+                                        file_info: FileInfo {
+                                            path: file.enclosed_name().unwrap_or(Path::new("unknown")).to_path_buf(),
+                                            dir: file.is_dir(),
+                                        },
                                         file_data: Some(data),
                                         read_sauce: false,
                                         sauce: None,
@@ -552,64 +555,61 @@ extern "C" {
 
 #[cfg(windows)]
 fn get_drives() -> Vec<PathBuf> {
-  let mut drive_names = Vec::new();
-  let mut drives = unsafe { GetLogicalDrives() };
-  let mut letter = b'A';
-  while drives > 0 {
-    if drives & 1 != 0 {
-      drive_names.push(format!("{}:\\", letter as char).into());
+    let mut drive_names = Vec::new();
+    let mut drives = unsafe { GetLogicalDrives() };
+    let mut letter = b'A';
+    while drives > 0 {
+        if drives & 1 != 0 {
+            drive_names.push(format!("{}:\\", letter as char).into());
+        }
+        drives >>= 1;
+        letter += 1;
     }
-    drives >>= 1;
-    letter += 1;
-  }
-  drive_names
+    drive_names
 }
 
 fn read_folder(path: &Path) -> Result<Vec<FileInfo>, Error> {
     fs::read_dir(path).map(|entries| {
-      let mut file_infos: Vec<FileInfo> = entries
-        .filter_map(|result| result.ok())
-        .filter_map(|entry| {
-          let info = FileInfo::new(entry.path());
-          if !info.dir {
-            // Do not show system files.
-            if !info.path.is_file() {
-              return None;
+        let mut file_infos: Vec<FileInfo> = entries
+            .filter_map(|result| result.ok())
+            .filter_map(|entry| {
+                let info = FileInfo::new(entry.path());
+                if !info.dir {
+                    // Do not show system files.
+                    if !info.path.is_file() {
+                        return None;
+                    }
+                }
+
+                #[cfg(unix)]
+                if info.get_file_name().starts_with('.') {
+                    return None;
+                }
+
+                Some(info)
+            })
+            .collect();
+
+        // Sort keeping folders before files.
+        file_infos.sort_by(|a, b| match a.dir == b.dir {
+            true => a.path.file_name().cmp(&b.path.file_name()),
+            false => b.dir.cmp(&a.dir),
+        });
+
+        #[cfg(windows)]
+        let file_infos = {
+            let drives = get_drives();
+            let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
+            for drive in drives {
+                infos.push(FileInfo { path: drive, dir: true });
             }
-          }
-
-          #[cfg(unix)]
-          if info.get_file_name().starts_with('.') {
-            return None;
-          }
-
-          Some(info)
-        })
-        .collect();
-
-      // Sort keeping folders before files.
-      file_infos.sort_by(|a, b| match a.dir == b.dir {
-        true => a.path.file_name().cmp(&b.path.file_name()),
-        false => b.dir.cmp(&a.dir),
-      });
-
-      #[cfg(windows)]
-      let file_infos = {
-          let drives = get_drives();
-          let mut infos = Vec::with_capacity(drives.len() + file_infos.len());
-          for drive in drives {
-            infos.push(FileInfo {
-              path: drive,
-              dir: true,
-            });
-          }
-          infos.append(&mut file_infos);
-          infos
+            infos.append(&mut file_infos);
+            infos
         };
 
-      file_infos
+        file_infos
     })
-  }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct FileInfo {
@@ -619,20 +619,15 @@ pub struct FileInfo {
 
 impl FileInfo {
     pub fn new(path: PathBuf) -> Self {
-      let dir = path.is_dir();
-      Self { path, dir }
+        let dir = path.is_dir();
+        Self { path, dir }
     }
 
     pub fn get_file_name(&self) -> &str {
         #[cfg(windows)]
         if self.dir && is_drive_root(&self.path) {
-          return self.path.to_str().unwrap_or_default();
+            return self.path.to_str().unwrap_or_default();
         }
-        self
-          .path
-          .file_name()
-          .and_then(|name| name.to_str())
-          .unwrap_or_default()
-      }
+        self.path.file_name().and_then(|name| name.to_str()).unwrap_or_default()
+    }
 }
-  

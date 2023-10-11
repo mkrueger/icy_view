@@ -168,7 +168,7 @@ impl<'a> MainWindow<'a> {
         self.drag_started = false;
         self.cur_scroll_pos = 0.0;
         self.drag_vel = 0.0;
-        self.key_vel =0.0;
+        self.key_vel = 0.0;
         self.last_scroll_pos = 1.0;
         self.opened_file = None;
         self.animation = None;
@@ -488,13 +488,11 @@ impl<'a> MainWindow<'a> {
 
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
-                || icy_engine::FORMATS.iter().any(|f|  {
+                || icy_engine::FORMATS.iter().any(|f| {
                     let e = ext.as_str().to_ascii_lowercase();
-                    println!("{} {}", f.get_file_extension(), e);  
+                    println!("{} {}", f.get_file_extension(), e);
                     f.get_file_extension() == e || f.get_alt_extensions().contains(&e)
-                }
-                
-                )
+                })
                 || !EXT_BLACK_LIST.contains(&ext.as_str()) && !is_binary(entry)
             {
                 match entry.get_data(|path, data| Buffer::from_bytes(path, true, data)) {
