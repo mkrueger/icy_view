@@ -1,6 +1,6 @@
 [package]
 name = "icy_view"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 description = "A fast ansi art viewer."
 authors = ["Mike Krüger <mkrueger@posteo.de>"]
@@ -28,11 +28,11 @@ egui-modal = "0.2.4"
 egui-notify = "0.10.0"
  
 image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
+view_library = { path ="./view_library" }
 icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
 icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
 #icy_engine = { path ="../icy_engine" }
 #icy_engine_egui = { path ="../icy_engine_egui" }
-view_library = { path ="./view_library" }
 
 [build-dependencies]
 winres = "0.1"
@@ -47,6 +47,7 @@ copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
 [package.metadata.deb]
 section="utils"
 copyright = "Copyright (c) Mike Krüger 2023. All rights reserved."
+revision=""
 license-file="build/license.rtf"
 depends = "libasound2"
 assets = [
