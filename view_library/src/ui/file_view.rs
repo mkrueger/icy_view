@@ -101,6 +101,7 @@ pub struct FileView {
     pub scroll_pos: Option<usize>,
     /// Files in directory.
     pub files: Vec<FileEntry>,
+    pub upgrade_version: Option<String>,
 
     pub auto_scroll_enabled: bool,
     pub scroll_speed: usize,
@@ -139,6 +140,7 @@ impl FileView {
             filter: String::new(),
             auto_scroll_enabled: true,
             scroll_speed: 1,
+            upgrade_version: None
         }
     }
 
@@ -171,6 +173,12 @@ impl FileView {
             let response = ui.button("🗙").on_hover_text(fl!(crate::LANGUAGE_LOADER, "tooltip-reset-filter-button"));
             if response.clicked() {
                 self.filter.clear();
+            }
+            if let Some(ver) = &self.upgrade_version {
+                ui.hyperlink_to(
+                    fl!(crate::LANGUAGE_LOADER, "menu-upgrade_version", version=ver.clone()),
+                    "https://github.com/mkrueger/icy_view/releases/latest",
+                );
             }
         });
 

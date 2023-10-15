@@ -1,6 +1,6 @@
 [package]
 name = "icy_view"
-version = "0.4.3"
+version = "0.5.0"
 edition = "2021"
 description = "A fast ansi art viewer."
 authors = ["Mike Krüger <mkrueger@posteo.de>"]
@@ -26,13 +26,16 @@ once_cell = "1.16.0"
 rust-embed = "8.0.0"
 egui-modal = "0.2.4"
 egui-notify = "0.10.0"
- 
+lazy_static = "1.4.0"
+
 image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
 view_library = { path ="./view_library" }
 icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }
 icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
 #icy_engine = { path ="../icy_engine" }
 #icy_engine_egui = { path ="../icy_engine_egui" }
+github_release_check = "0.2.1"
+semver = "1.0.20"
 
 [build-dependencies]
 winres = "0.1"

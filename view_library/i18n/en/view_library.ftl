@@ -10,6 +10,7 @@ menu-item-auto-scroll=Auto scroll
 menu-item-scroll-speed-slow=Slow speed
 menu-item-scroll-speed-medium=Medium speed
 menu-item-scroll-speed-fast=Fast speed
+menu-upgrade_version=Upgrade to { $version }
 
 tooltip-refresh=Refresh
 tooltip-reset-filter-button=Reset filter
