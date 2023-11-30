@@ -12,7 +12,7 @@ use std::{
     env::current_dir,
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::Duration, rc::Rc,
 };
 
 use self::file_view::{FileEntry, FileView, Message};
@@ -54,7 +54,7 @@ const EXT_WHITE_LIST: [&str; 5] = ["seq", "diz", "nfo", "ice", "bbs"];
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
 
 impl<'a> App for MainWindow<'a> {
-    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         egui::SidePanel::left("bottom_panel")
             .default_width(ctx.available_rect().width() * 3.0 / 2.0)
             .exact_width(250.0)
@@ -104,11 +104,11 @@ impl<'a> App for MainWindow<'a> {
 
         if ctx.input(|i| i.key_pressed(egui::Key::F11) || i.key_pressed(egui::Key::Enter) && i.modifiers.alt) {
             self.full_screen_mode = !self.full_screen_mode;
-            frame.set_fullscreen(self.full_screen_mode);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.full_screen_mode));
         }
 
         if ctx.input(|i| i.key_pressed(egui::Key::Q) && i.modifiers.alt) {
-            frame.close();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             if self.sauce_dialog.is_some() {
@@ -116,14 +116,14 @@ impl<'a> App for MainWindow<'a> {
             } else if self.help_dialog.is_some() {
                 self.help_dialog = None;
             } else {
-                frame.close();
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }
 }
 
 impl<'a> MainWindow<'a> {
-    pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
+    pub fn new(gl: &Rc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
         let mut view = BufferView::new(gl);
         view.interactive = false;
 

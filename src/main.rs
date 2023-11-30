@@ -3,9 +3,8 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use eframe::egui;
-use view_library::MainWindow;
 use semver::Version;
+use view_library::MainWindow;
 
 lazy_static::lazy_static! {
     static ref VERSION: Version = Version::parse( env!("CARGO_PKG_VERSION")).unwrap();
@@ -32,12 +31,13 @@ fn main() {
     let args = Cli::parse();
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(1284. + 8., 839.)),
+        //initial_window_size: Some(egui::vec2(1284. + 8., 839.)),
         multisampling: 0,
         renderer: eframe::Renderer::Glow,
-        icon_data: Some(eframe::IconData::try_from_png_bytes(&include_bytes!("../build/linux/256x256.png")[..]).unwrap()),
         ..Default::default()
     };
+
+    //  options.viewport.icon = Some(IconData::from( &include_bytes!("../build/linux/256x256.png")[..]).unwrap());
     eframe::run_native(
         &DEFAULT_TITLE,
         options,
@@ -49,7 +49,7 @@ fn main() {
             if *VERSION < *LATEST_VERSION {
                 fd.file_view.upgrade_version = Some(LATEST_VERSION.to_string());
             }
-            
+
             let cmd = fd.file_view.refresh();
             fd.handle_command(cmd);
             Box::new(fd)
