@@ -313,9 +313,9 @@ impl FileView {
                 let font_id = FontId::new(14.0, FontFamily::Proportional);
                 let text: WidgetText = label.into();
                 let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-                ui.painter().galley_with_color(
+                ui.painter().galley_with_override_text_color(
                     egui::Align2::LEFT_TOP.align_size_within_rect(galley.size(), rect).min,
-                    galley.galley,
+                    galley,
                     text_color,
                 );
                 if response.hovered() {
