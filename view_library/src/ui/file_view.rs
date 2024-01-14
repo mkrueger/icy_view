@@ -140,7 +140,7 @@ impl FileView {
             filter: String::new(),
             auto_scroll_enabled: true,
             scroll_speed: 1,
-            upgrade_version: None
+            upgrade_version: None,
         }
     }
 
@@ -176,7 +176,7 @@ impl FileView {
             }
             if let Some(ver) = &self.upgrade_version {
                 ui.hyperlink_to(
-                    fl!(crate::LANGUAGE_LOADER, "menu-upgrade_version", version=ver.clone()),
+                    fl!(crate::LANGUAGE_LOADER, "menu-upgrade_version", version = ver.clone()),
                     "https://github.com/mkrueger/icy_view/releases/latest",
                 );
             }
@@ -313,11 +313,8 @@ impl FileView {
                 let font_id = FontId::new(14.0, FontFamily::Proportional);
                 let text: WidgetText = label.into();
                 let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-                ui.painter().galley_with_override_text_color(
-                    egui::Align2::LEFT_TOP.align_size_within_rect(galley.size(), rect).min,
-                    galley,
-                    text_color,
-                );
+                ui.painter()
+                    .galley_with_override_text_color(egui::Align2::LEFT_TOP.align_size_within_rect(galley.size(), rect).min, galley, text_color);
                 if response.hovered() {
                     entry.load_sauce();
                     if let Some(sauce) = &entry.sauce {
