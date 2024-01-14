@@ -12,7 +12,7 @@ use std::{
     env::current_dir,
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration, rc::Rc,
+    time::Duration,
 };
 
 use self::file_view::{FileEntry, FileView, Message};
@@ -123,7 +123,7 @@ impl<'a> App for MainWindow<'a> {
 }
 
 impl<'a> MainWindow<'a> {
-    pub fn new(gl: &Rc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
+    pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
         let mut view = BufferView::new(gl);
         view.interactive = false;
 
