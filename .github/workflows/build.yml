@@ -125,7 +125,7 @@ jobs:
       - name: Sign dmg
         id: sign-bundle
         run: |
-          export version="$(cargo get package.version)"
+          export version="$(cat Cargo.toml | grep "version"  | awk -F"\"" '{print $2}' | head -n 1)"
           echo "VERSION=$version" >> $GITHUB_ENV
           sed "s/#VERSION/$version/g" <build/file_id.diz  >file_id.diz
           export MAC_APP=$(cat Cargo.toml | grep "name"  | awk -F"\"" '{print $2}' | head -n 2 | tail -n 1)
