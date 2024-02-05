@@ -1,11 +1,11 @@
 use eframe::{
-    egui::{self, Context, CursorIcon, Image, RichText, ScrollArea},
-    epaint::{Color32, Rect, Vec2},
+    egui::{self, load::SizedTexture, Context, CursorIcon, Image, RichText, ScrollArea, TextureOptions},
+    epaint::{Color32, ColorImage, Rect, TextureHandle, Vec2},
     App, Frame,
 };
 
 use i18n_embed_fl::fl;
-use icy_engine::Buffer;
+use icy_engine::{ansi, parse_with_parser, rip, Buffer, DOS_DEFAULT_PALETTE};
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
 use std::{
@@ -37,6 +37,7 @@ pub struct MainWindow<'a> {
     loaded_buffer: bool,
 
     retained_image: Option<Image<'a>>,
+    texture_handle: Option<ColorImage>,
 
     sauce_dialog: Option<sauce_dialog::SauceDialog>,
     help_dialog: Option<help_dialog::HelpDialog>,
@@ -141,6 +142,7 @@ impl<'a> MainWindow<'a> {
             file_view: FileView::new(initial_path),
             in_scroll: false,
             retained_image: None,
+            texture_handle: None,
             full_screen_mode: false,
             error_text: None,
             loaded_buffer: false,
@@ -161,6 +163,7 @@ impl<'a> MainWindow<'a> {
     pub fn reset(&mut self) {
         self.in_scroll = false;
         self.retained_image = None;
+        self.texture_handle = None;
         self.error_text = None;
         self.loaded_buffer = false;
         self.sauce_dialog = None;
@@ -235,6 +238,20 @@ impl<'a> MainWindow<'a> {
 
         if let Some(img) = &self.retained_image {
             ScrollArea::both().show(ui, |ui| {
+                let size = img.load_and_calc_size(ui, ui.available_size()).unwrap();
+                let rect: Rect = egui::Rect::from_min_size(ui.min_rect().min, size);
+                img.paint_at(ui, rect);
+            });
+            return;
+        }
+        if let Some(color_image) = &self.texture_handle {
+            ScrollArea::both().show(ui, |ui| {
+                let color_image: ColorImage = color_image.clone();
+                let handle = ui.ctx().load_texture("my_texture", color_image, TextureOptions::NEAREST);
+                let sized_texture: SizedTexture = (&handle).into();
+                let w = ui.available_width() - 16.0;
+                let scale = w / sized_texture.size.x;
+                let img = Image::from_texture(sized_texture).fit_to_original_size(scale);
                 let size = img.load_and_calc_size(ui, ui.available_size()).unwrap();
                 let rect: Rect = egui::Rect::from_min_size(ui.min_rect().min, size);
                 img.paint_at(ui, rect);
@@ -486,6 +503,47 @@ impl<'a> MainWindow<'a> {
                 }
             }
 
+            if ext == "rip" {
+                match entry.get_data(|path, data| {
+                    let mut rip_parser = rip::Parser::new(Box::new(ansi::Parser::default()));
+
+                    let mut result: Buffer = Buffer::new((80, 25));
+                    result.is_terminal_buffer = false;
+                    let (text, is_unicode) = icy_engine::convert_ansi_to_utf8(data);
+                    if is_unicode {
+                        result.buffer_type = icy_engine::BufferType::Unicode;
+                    }
+                    match parse_with_parser(&mut result, &mut rip_parser, &text, true) {
+                        Ok(_) => {
+                            rip_parser.run_commands();
+                            rip_parser
+                        }
+                        Err(err) => {
+                            log::error!("Error while parsing rip file: {err}");
+                            rip_parser
+                        }
+                    }
+                }) {
+                    Ok(buf) => {
+                        let size = buf.bgi.window;
+                        let mut pixels = Vec::new();
+                        let pal = buf.bgi.get_palette().clone();
+                        for i in buf.bgi.screen {
+                            let (r, g, b) = pal.get_rgb(i as u32);
+                            pixels.push(r);
+                            pixels.push(g);
+                            pixels.push(b);
+                            pixels.push(255);
+                        }
+                        let color_image: ColorImage = ColorImage::from_rgba_premultiplied([size.width as usize, size.height as usize], &pixels);
+                        self.texture_handle = Some(color_image);
+                    }
+                    Err(err) => self.error_text = Some(err.to_string()),
+                }
+
+                return;
+            }
+
             if force_load
                 || EXT_WHITE_LIST.contains(&ext.as_str())
                 || icy_engine::FORMATS.iter().any(|f| {
@@ -511,6 +569,7 @@ impl<'a> MainWindow<'a> {
 
     fn reset_state(&mut self) {
         self.retained_image = None;
+        self.texture_handle = None;
         self.error_text = None;
         self.loaded_buffer = false;
         self.file_view.selected_file = None;
