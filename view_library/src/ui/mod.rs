@@ -515,7 +515,6 @@ impl<'a> MainWindow<'a> {
                     }
                     match parse_with_parser(&mut result, &mut rip_parser, &text, true) {
                         Ok(_) => {
-                            rip_parser.run_commands();
                             rip_parser
                         }
                         Err(err) => {
