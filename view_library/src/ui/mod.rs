@@ -505,7 +505,7 @@ impl<'a> MainWindow<'a> {
 
             if ext == "rip" {
                 match entry.get_data(|path, data| {
-                    let mut rip_parser = rip::Parser::new(Box::new(ansi::Parser::default()));
+                    let mut rip_parser = rip::Parser::new(Box::new(ansi::Parser::default()), PathBuf::new());
 
                     let mut result: Buffer = Buffer::new((80, 25));
                     result.is_terminal_buffer = false;
