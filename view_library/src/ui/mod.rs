@@ -1,11 +1,11 @@
 use eframe::{
     egui::{self, load::SizedTexture, Context, CursorIcon, Image, RichText, ScrollArea, TextureOptions},
-    epaint::{Color32, ColorImage, Rect, TextureHandle, Vec2},
+    epaint::{Color32, ColorImage, Rect, Vec2},
     App, Frame,
 };
 
 use i18n_embed_fl::fl;
-use icy_engine::{ansi, parse_with_parser, rip, Buffer, DOS_DEFAULT_PALETTE};
+use icy_engine::{ansi, parse_with_parser, rip, Buffer};
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
 use std::{
@@ -504,7 +504,7 @@ impl<'a> MainWindow<'a> {
             }
 
             if ext == "rip" {
-                match entry.get_data(|path, data| {
+                match entry.get_data(|_path, data| {
                     let mut rip_parser = rip::Parser::new(Box::new(ansi::Parser::default()), PathBuf::new());
 
                     let mut result: Buffer = Buffer::new((80, 25));
