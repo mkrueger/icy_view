@@ -14,6 +14,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use super::options::{Options, ScrollSpeed};
+
 pub enum Message {
     Select(usize, bool),
     Open(usize),
@@ -103,14 +105,13 @@ pub struct FileView {
     pub files: Vec<FileEntry>,
     pub upgrade_version: Option<String>,
 
-    pub auto_scroll_enabled: bool,
-    pub scroll_speed: usize,
+    pub options: super::options::Options,
     pub filter: String,
     pre_select_file: Option<String>,
 }
 
 impl FileView {
-    pub fn new(initial_path: Option<PathBuf>) -> Self {
+    pub fn new(initial_path: Option<PathBuf>, options: Options) -> Self {
         let mut path = if let Some(path) = initial_path {
             path
         } else if let Some(user_dirs) = UserDirs::new() {
@@ -138,8 +139,7 @@ impl FileView {
             scroll_pos: None,
             files: Vec::new(),
             filter: String::new(),
-            auto_scroll_enabled: true,
-            scroll_speed: 1,
+            options,
             upgrade_version: None,
         }
     }
@@ -228,18 +228,17 @@ impl FileView {
                     ui.close_menu();
                 }
                 ui.separator();
-                let mut b = self.auto_scroll_enabled;
+                let mut b = self.options.auto_scroll_enabled;
                 if ui.checkbox(&mut b, fl!(crate::LANGUAGE_LOADER, "menu-item-auto-scroll")).clicked() {
                     command = Some(Message::ToggleAutoScroll);
                     ui.close_menu();
                 }
-                let title = match self.scroll_speed {
-                    2 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
-                    0 => {
+                let title = match self.options.scroll_speed {
+                    ScrollSpeed::Slow => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-slow"),
+                    ScrollSpeed::Medium => {
                         fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-medium")
                     }
-                    1 => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
-                    _ => panic!(),
+                    ScrollSpeed::Fast => fl!(crate::LANGUAGE_LOADER, "menu-item-scroll-speed-fast"),
                 };
 
                 let r = ui.selectable_label(false, title);

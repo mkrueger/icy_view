@@ -23,6 +23,8 @@ egui-modal = "0.3.3"
 egui-notify = "0.13.0"
 thiserror = "1.0"
 anyhow = "1.0.75"
+serde = "1.0.197"
+toml = "0.8.10"
 
 image = { version = "0.24", features = ["jpeg", "png", "gif", "bmp"] }
 icy_engine = { git = "https://github.com/mkrueger/icy_engine.git" }

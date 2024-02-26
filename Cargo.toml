@@ -1,6 +1,6 @@
 [package]
 name = "icy_view"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "A fast ansi art viewer."
 authors = ["Mike Krüger <mkrueger@posteo.de>"]

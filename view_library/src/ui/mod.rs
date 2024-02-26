@@ -15,10 +15,14 @@ use std::{
     time::Duration,
 };
 
-use self::file_view::{FileEntry, FileView, Message};
+use self::{
+    file_view::{FileEntry, FileView, Message},
+    options::{Options, ScrollSpeed},
+};
 
 mod file_view;
 mod help_dialog;
+pub mod options;
 mod sauce_dialog;
 
 pub struct MainWindow<'a> {
@@ -45,11 +49,10 @@ pub struct MainWindow<'a> {
     toasts: egui_notify::Toasts,
     is_closed: bool,
     pub opened_file: Option<FileEntry>,
-
+    pub store_options: bool,
     // animations
     animation: Option<Arc<Mutex<Animator>>>,
 }
-const SCROLL_SPEED: [f32; 3] = [80.0, 160.0, 320.0];
 const EXT_WHITE_LIST: [&str; 5] = ["seq", "diz", "nfo", "ice", "bbs"];
 
 const EXT_BLACK_LIST: [&str; 8] = ["zip", "rar", "gz", "tar", "7z", "pdf", "exe", "com"];
@@ -73,7 +76,7 @@ impl<'a> App for MainWindow<'a> {
             ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
             self.paint_main_area(ui)
         });
-        self.in_scroll &= self.file_view.auto_scroll_enabled;
+        self.in_scroll &= self.file_view.options.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
@@ -121,10 +124,17 @@ impl<'a> App for MainWindow<'a> {
             }
         }
     }
+
+    fn on_exit(&mut self, _gl: Option<&glow::Context>) {
+        println!("store options: {}", self.store_options);
+        if self.store_options {
+            self.file_view.options.store_options();
+        }
+    }
 }
 
 impl<'a> MainWindow<'a> {
-    pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>) -> Self {
+    pub fn new(gl: &Arc<glow::Context>, mut initial_path: Option<PathBuf>, options: Options) -> Self {
         let mut view = BufferView::new(gl);
         view.interactive = false;
 
@@ -137,9 +147,10 @@ impl<'a> MainWindow<'a> {
                 }
             }
         }
+
         Self {
             buffer_view: Arc::new(eframe::epaint::mutex::Mutex::new(view)),
-            file_view: FileView::new(initial_path),
+            file_view: FileView::new(initial_path, options),
             in_scroll: false,
             retained_image: None,
             texture_handle: None,
@@ -157,6 +168,7 @@ impl<'a> MainWindow<'a> {
             opened_file: None,
             is_closed: false,
             animation: None,
+            store_options: false,
         }
     }
 
@@ -193,7 +205,7 @@ impl<'a> MainWindow<'a> {
             .inner_margin(egui::style::Margin::same(0.0))
             .fill(Color32::BLACK);
         egui::CentralPanel::default().frame(frame_no_margins).show(ctx, |ui| self.paint_main_area(ui));
-        self.in_scroll &= self.file_view.auto_scroll_enabled;
+        self.in_scroll &= self.file_view.options.auto_scroll_enabled;
         if self.in_scroll {
             //   ctx.request_repaint_after(Duration::from_millis(10));
             ctx.request_repaint();
@@ -389,7 +401,7 @@ impl<'a> MainWindow<'a> {
 
         let dt = ui.input(|i| i.unstable_dt);
         let sp = if self.in_scroll {
-            (self.cur_scroll_pos + SCROLL_SPEED[self.file_view.scroll_speed] * dt).round()
+            (self.cur_scroll_pos + self.file_view.options.scroll_speed.get_speed() * dt).round()
         } else {
             self.cur_scroll_pos.round()
         };
@@ -514,9 +526,7 @@ impl<'a> MainWindow<'a> {
                         result.buffer_type = icy_engine::BufferType::Unicode;
                     }
                     match parse_with_parser(&mut result, &mut rip_parser, &text, true) {
-                        Ok(_) => {
-                            rip_parser
-                        }
+                        Ok(_) => rip_parser,
                         Err(err) => {
                             log::error!("Error while parsing rip file: {err}");
                             rip_parser
@@ -607,10 +617,10 @@ impl<'a> MainWindow<'a> {
                     }
                 }
                 Message::ToggleAutoScroll => {
-                    self.file_view.auto_scroll_enabled = !self.in_scroll;
-                    self.in_scroll = self.file_view.auto_scroll_enabled;
+                    self.file_view.options.auto_scroll_enabled = !self.file_view.options.auto_scroll_enabled;
+                    self.in_scroll = self.file_view.options.auto_scroll_enabled;
 
-                    if self.file_view.auto_scroll_enabled {
+                    if self.file_view.options.auto_scroll_enabled {
                         self.toasts
                             .info(fl!(crate::LANGUAGE_LOADER, "toast-auto-scroll-on"))
                             .set_duration(Some(Duration::from_secs(3)));
@@ -631,25 +641,24 @@ impl<'a> MainWindow<'a> {
                     self.help_dialog = Some(help_dialog::HelpDialog::new());
                 }
                 Message::ChangeScrollSpeed => {
-                    self.file_view.scroll_speed = (self.file_view.scroll_speed + 1) % SCROLL_SPEED.len();
+                    self.file_view.options.scroll_speed = self.file_view.options.scroll_speed.next();
 
-                    match self.file_view.scroll_speed {
-                        0 => {
+                    match self.file_view.options.scroll_speed {
+                        ScrollSpeed::Slow => {
                             self.toasts
                                 .info(fl!(crate::LANGUAGE_LOADER, "toast-scroll-slow"))
                                 .set_duration(Some(Duration::from_secs(3)));
                         }
-                        1 => {
+                        ScrollSpeed::Medium => {
                             self.toasts
                                 .info(fl!(crate::LANGUAGE_LOADER, "toast-scroll-medium"))
                                 .set_duration(Some(Duration::from_secs(3)));
                         }
-                        2 => {
+                        ScrollSpeed::Fast => {
                             self.toasts
                                 .info(fl!(crate::LANGUAGE_LOADER, "toast-scroll-fast"))
                                 .set_duration(Some(Duration::from_secs(3)));
                         }
-                        _ => {}
                     }
                 }
             }
