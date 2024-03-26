@@ -37,6 +37,13 @@ icy_engine_egui = { git ="https://github.com/mkrueger/icy_engine_egui" }
 github_release_check = "0.2.1"
 semver = "1.0.20"
 
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*
+
 [build-dependencies]
 winres = "0.1"
 

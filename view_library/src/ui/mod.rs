@@ -5,7 +5,7 @@ use eframe::{
 };
 
 use i18n_embed_fl::fl;
-use icy_engine::{ansi, parse_with_parser, rip, Buffer};
+use icy_engine::{parse_with_parser, rip, Buffer};
 use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
 
 use std::{
@@ -516,15 +516,17 @@ impl<'a> MainWindow<'a> {
             }
 
             if ext == "rip" {
+                
                 match entry.get_data(|_path, data| {
-                    let mut rip_parser = rip::Parser::new(Box::new(ansi::Parser::default()), PathBuf::new());
-
+                    let mut rip_parser = rip::Parser::new(Box::default(), PathBuf::new());
                     let mut result: Buffer = Buffer::new((80, 25));
                     result.is_terminal_buffer = false;
+                        
                     let (text, is_unicode) = icy_engine::convert_ansi_to_utf8(data);
                     if is_unicode {
                         result.buffer_type = icy_engine::BufferType::Unicode;
                     }
+                    
                     match parse_with_parser(&mut result, &mut rip_parser, &text, true) {
                         Ok(_) => rip_parser,
                         Err(err) => {
