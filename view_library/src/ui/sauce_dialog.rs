@@ -1,10 +1,10 @@
 use eframe::egui::{self, Layout};
 use egui_modal::Modal;
 use i18n_embed_fl::fl;
-use icy_engine::SauceData;
+use icy_sauce::SauceInformation;
 
 pub struct SauceDialog {
-    sauce: SauceData,
+    sauce: SauceInformation,
 }
 
 pub enum Message {
@@ -12,7 +12,7 @@ pub enum Message {
 }
 
 impl SauceDialog {
-    pub fn new(sauce: SauceData) -> Self {
+    pub fn new(sauce: SauceInformation) -> Self {
         Self { sauce }
     }
 
@@ -27,65 +27,66 @@ impl SauceDialog {
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-title-label"));
                     });
-                    ui.add(egui::TextEdit::singleline(&mut self.sauce.title.to_string().as_str()).char_limit(35));
+                    ui.add(egui::TextEdit::singleline(&mut self.sauce.title().to_string().as_str()).char_limit(35));
                     ui.end_row();
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-author-label"));
                     });
 
-                    ui.add(egui::TextEdit::singleline(&mut self.sauce.author.to_string().as_str()).char_limit(20));
+                    ui.add(egui::TextEdit::singleline(&mut self.sauce.author().to_string().as_str()).char_limit(20));
                     ui.end_row();
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-group-label"));
                     });
-                    ui.add(egui::TextEdit::singleline(&mut self.sauce.group.to_string().as_str()).char_limit(20));
+                    ui.add(egui::TextEdit::singleline(&mut self.sauce.group().to_string().as_str()).char_limit(20));
                     ui.end_row();
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-date-label"));
                     });
-                    let t = self.sauce.creation_time.format("%Y-%m-%d").to_string();
+                    let t = self.sauce.get_date().unwrap().format("%Y-%m-%d").to_string();
                     ui.add(egui::TextEdit::singleline(&mut t.as_str()).char_limit(20));
                     ui.end_row();
+                    if let Ok(caps) = self.sauce.get_character_capabilities() {
+                        if let Some(font) = &caps.font_opt {
+                            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-font-name"));
+                            });
+                            ui.add(egui::TextEdit::singleline(&mut font.to_string()).char_limit(20));
+                            ui.end_row();
+                        }
 
-                    if let Some(font) = &self.sauce.font_opt {
                         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-font-name"));
+                            ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-flags-label"));
                         });
-                        ui.add(egui::TextEdit::singleline(&mut font.as_str()).char_limit(20));
-                        ui.end_row();
-                    }
-
-                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(fl!(crate::LANGUAGE_LOADER, "sauce-dialog-flags-label"));
-                    });
-                    let mut flags: String = String::new();
-                    if self.sauce.use_ice {
-                        flags.push_str("ice colors");
-                    }
-
-                    if self.sauce.use_letter_spacing {
-                        if !flags.is_empty() {
-                            flags.push_str(", ");
+                        let mut flags: String = String::new();
+                        if caps.use_ice {
+                            flags.push_str("ice colors");
                         }
-                        flags.push_str("letter spacing");
-                    }
 
-                    if self.sauce.use_aspect_ratio {
-                        if !flags.is_empty() {
-                            flags.push_str(", ");
+                        if caps.use_letter_spacing {
+                            if !flags.is_empty() {
+                                flags.push_str(", ");
+                            }
+                            flags.push_str("letter spacing");
                         }
-                        flags.push_str("aspect ratio");
+
+                        if caps.use_aspect_ratio {
+                            if !flags.is_empty() {
+                                flags.push_str(", ");
+                            }
+                            flags.push_str("aspect ratio");
+                        }
+                        ui.add(egui::TextEdit::singleline(&mut flags.to_string().as_str()).char_limit(20));
                     }
 
-                    ui.add(egui::TextEdit::singleline(&mut flags.to_string().as_str()).char_limit(20));
                     ui.end_row();
                 });
 
                 let mut tmp_str = String::new();
-                for s in &self.sauce.comments {
+                for s in self.sauce.comments() {
                     tmp_str.push_str(&s.to_string());
                     tmp_str.push('\n');
                 }

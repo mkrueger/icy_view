@@ -5,7 +5,7 @@ use eframe::{
 };
 use egui::{ScrollArea, TextEdit, Ui};
 use i18n_embed_fl::fl;
-use icy_engine::SauceData;
+use icy_sauce::SauceInformation;
 
 use std::{
     env,
@@ -33,7 +33,7 @@ pub struct FileEntry {
     pub file_info: FileInfo,
     pub file_data: Option<Vec<u8>>,
     pub read_sauce: bool,
-    pub sauce: Option<SauceData>,
+    pub sauce: Option<SauceInformation>,
 }
 
 impl FileEntry {
@@ -68,7 +68,7 @@ impl FileEntry {
         }
         self.read_sauce = true;
 
-        if let Ok(Ok(Some(data))) = self.get_data(|_, data| SauceData::extract(data)) {
+        if let Ok(Ok(Some(data))) = self.get_data(|_, data| SauceInformation::read(data)) {
             self.sauce = Some(data);
         }
     }
@@ -87,7 +87,7 @@ impl FileEntry {
         self.is_dir()
     }
 
-    pub(crate) fn get_sauce(&self) -> Option<SauceData> {
+    pub(crate) fn get_sauce(&self) -> Option<SauceInformation> {
         if !self.read_sauce {
             return None;
         }
@@ -263,7 +263,7 @@ impl FileView {
                 return true;
             }
             if let Some(sauce) = &p.sauce {
-                if sauce.title.to_string().to_lowercase().contains(&filter)
+                if sauce.title().to_string().to_lowercase().contains(&filter)
                 /*    || sauce
                     .group
                     .to_string()
@@ -322,44 +322,46 @@ impl FileView {
                                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.label(fl!(crate::LANGUAGE_LOADER, "heading-title"));
                                 });
-                                ui.strong(sauce.title.to_string());
+                                ui.strong(sauce.title().to_string());
                                 ui.end_row();
                                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.label(fl!(crate::LANGUAGE_LOADER, "heading-author"));
                                 });
-                                ui.strong(sauce.author.to_string());
+                                ui.strong(sauce.author().to_string());
                                 ui.end_row();
                                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.label(fl!(crate::LANGUAGE_LOADER, "heading-group"));
                                 });
-                                ui.strong(sauce.group.to_string());
+                                ui.strong(sauce.group().to_string());
                                 ui.end_row();
                                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.label(fl!(crate::LANGUAGE_LOADER, "heading-screen-mode"));
                                 });
                                 let mut flags: String = String::new();
-                                if sauce.use_ice {
-                                    flags.push_str("ICE");
-                                }
-
-                                if sauce.use_letter_spacing {
-                                    if !flags.is_empty() {
-                                        flags.push(',');
+                                if let Ok(caps) = sauce.get_character_capabilities() {
+                                    if caps.use_ice {
+                                        flags.push_str("ICE");
                                     }
-                                    flags.push_str("9px");
-                                }
 
-                                if sauce.use_aspect_ratio {
-                                    if !flags.is_empty() {
-                                        flags.push(',');
+                                    if caps.use_letter_spacing {
+                                        if !flags.is_empty() {
+                                            flags.push(',');
+                                        }
+                                        flags.push_str("9px");
                                     }
-                                    flags.push_str("AR");
-                                }
 
-                                if flags.is_empty() {
-                                    ui.strong(RichText::new(format!("{}x{}", sauce.buffer_size.width, sauce.buffer_size.height)));
-                                } else {
-                                    ui.strong(RichText::new(format!("{}x{} ({})", sauce.buffer_size.width, sauce.buffer_size.height, flags)));
+                                    if caps.use_aspect_ratio {
+                                        if !flags.is_empty() {
+                                            flags.push(',');
+                                        }
+                                        flags.push_str("AR");
+                                    }
+
+                                    if flags.is_empty() {
+                                        ui.strong(RichText::new(format!("{}x{}", caps.width, caps.height)));
+                                    } else {
+                                        ui.strong(RichText::new(format!("{}x{} ({})", caps.width, caps.height, flags)));
+                                    }
                                 }
                                 ui.end_row();
                             });

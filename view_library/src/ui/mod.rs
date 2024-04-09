@@ -1,12 +1,12 @@
 use eframe::{
-    egui::{self, load::SizedTexture, Context, CursorIcon, Image, RichText, ScrollArea, TextureOptions},
+    egui::{self, load::SizedTexture, Context, CursorIcon, Image, Margin, RichText, ScrollArea, TextureOptions},
     epaint::{Color32, ColorImage, Rect, Vec2},
     App, Frame,
 };
 
 use i18n_embed_fl::fl;
 use icy_engine::{parse_with_parser, rip, Buffer};
-use icy_engine_egui::{animations::Animator, BufferView, MonitorSettings};
+use icy_engine_gui::{animations::Animator, BufferView, MonitorSettings};
 
 use std::{
     env::current_dir,
@@ -69,8 +69,8 @@ impl<'a> App for MainWindow<'a> {
                 self.handle_command(command);
             });
         let frame_no_margins = egui::containers::Frame::none()
-            .outer_margin(egui::style::Margin::same(0.0))
-            .inner_margin(egui::style::Margin::same(0.0))
+            .outer_margin(Margin::same(0.0))
+            .inner_margin(Margin::same(0.0))
             .fill(Color32::BLACK);
         egui::CentralPanel::default().frame(frame_no_margins).show(ctx, |ui| {
             ui.set_enabled(self.sauce_dialog.is_none() && self.help_dialog.is_none());
@@ -201,8 +201,8 @@ impl<'a> MainWindow<'a> {
             });
 
         let frame_no_margins = egui::containers::Frame::none()
-            .outer_margin(egui::style::Margin::same(0.0))
-            .inner_margin(egui::style::Margin::same(0.0))
+                .outer_margin(Margin::same(0.0))
+                .inner_margin(Margin::same(0.0))
             .fill(Color32::BLACK);
         egui::CentralPanel::default().frame(frame_no_margins).show(ctx, |ui| self.paint_main_area(ui));
         self.in_scroll &= self.file_view.options.auto_scroll_enabled;
@@ -337,7 +337,7 @@ impl<'a> MainWindow<'a> {
                     }
                 }
             }
-            if response.drag_released_by(egui::PointerButton::Primary) {
+            if response.drag_stopped_by(egui::PointerButton::Primary) {
                 self.drag_started = false;
             }
             if response.dragged_by(egui::PointerButton::Primary) && self.drag_started {
@@ -390,7 +390,7 @@ impl<'a> MainWindow<'a> {
         }
     }
 
-    fn show_buffer_view(&mut self, ui: &mut egui::Ui, monitor_settings: MonitorSettings) -> (egui::Response, icy_engine_egui::TerminalCalc) {
+    fn show_buffer_view(&mut self, ui: &mut egui::Ui, monitor_settings: MonitorSettings) -> (egui::Response, icy_engine_gui::TerminalCalc) {
         let w = (ui.available_width() / 8.0).floor();
         let scalex = (w / self.buffer_view.lock().get_width() as f32).min(2.0);
         let scaley = if self.buffer_view.lock().get_buffer_mut().use_aspect_ratio() {
@@ -406,7 +406,7 @@ impl<'a> MainWindow<'a> {
             self.cur_scroll_pos.round()
         };
 
-        let mut opt = icy_engine_egui::TerminalOptions {
+        let mut opt = icy_engine_gui::TerminalOptions {
             stick_to_bottom: false,
             scale: Some(Vec2::new(scalex, scaley)),
             use_terminal_height: false,
@@ -431,7 +431,7 @@ impl<'a> MainWindow<'a> {
             }
         }
 
-        let (response, calc) = icy_engine_egui::show_terminal_area(ui, self.buffer_view.clone(), opt);
+        let (response, calc) = icy_engine_gui::show_terminal_area(ui, self.buffer_view.clone(), opt);
         (response, calc)
     }
 
